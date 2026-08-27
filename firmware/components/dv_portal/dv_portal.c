@@ -257,7 +257,10 @@ static cJSON *make_state(void)
             cJSON_AddStringToObject(wifi, "ip", ip);
         }
         wifi_ap_record_t ap;
-        if (esp_wifi_sta_get_ap_info(&ap) == ESP_OK) cJSON_AddNumberToObject(wifi, "rssi", ap.rssi);
+        if (esp_wifi_sta_get_ap_info(&ap) == ESP_OK) {
+            cJSON_AddStringToObject(wifi, "ssid", (const char *)ap.ssid);
+            cJSON_AddNumberToObject(wifi, "rssi", ap.rssi);
+        }
     }
     return root;
 }

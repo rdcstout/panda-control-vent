@@ -1,4 +1,4 @@
-# Design QA — Panda Control Vent 0.1.0-rc.1
+# Design QA — Panda Control Vent 0.1.0-rc.2
 
 **Source visual truth**
 
@@ -10,7 +10,8 @@
 - Primary comparison: `design-qa-assets/implementation-overview-light.png`
 - Additional states: `implementation-overview-dark.png`,
   `implementation-lighting-dark.png`, `implementation-setup-light.png`,
-  `implementation-setup-dark.png`, and `implementation-setup-compact.png`.
+  `implementation-setup-dark.png`, `implementation-setup-compact.png`, and
+  `implementation-setup-light-rc2.png`.
 - Combined comparison: `design-qa-assets/combined-comparison.png`.
 
 **Viewport and normalization**
@@ -48,6 +49,9 @@
 - `implementation-setup-light.png` confirms the simplified printer connection,
   Wi-Fi, Setup Access Point, maintenance, and recovery hierarchy. The setup AP
   copy describes behavior in user terms and does not expose gateway/mode jargon.
+- `implementation-setup-light-rc2.png` confirms that a connected installation
+  selects and labels the active SSID, keeps the setup-AP switch visibly off, and
+  prevents an unchanged network from being saved with an empty password.
 - The source does not contain equivalent lighting or setup states, so those
   regions were evaluated against the approved visual language and task flow
   rather than falsely treated as pixel-identical source screens.
@@ -83,7 +87,14 @@
 
 **Comparison history**
 
-- Pass 1: no actionable P0/P1/P2 findings; no visual fix iteration was required.
+- Pass 1: no actionable P0/P1/P2 findings in the original design comparison.
+- Live-device follow-up found a P2 state-clarity problem: the connected Wi-Fi
+  screen still selected `Choose a network`, and the fallback-policy switch looked
+  like an active setup AP.
+- Pass 2 fix: the live SSID is now selected and labeled `Connected`; duplicate
+  scan results are collapsed; the current setup-AP state is represented by an
+  off, read-only switch while station Wi-Fi is connected. The revised capture
+  shows no horizontal overflow or console errors, so the P2 is resolved.
 
 **Implementation checklist**
 
