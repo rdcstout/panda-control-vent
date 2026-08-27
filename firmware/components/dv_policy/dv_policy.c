@@ -23,6 +23,8 @@ static const char *TAG = "dv_policy";
 #define KEY_BED_CLOSE  "bed_close_c"
 #define KEY_MAN_TGT    "man_tgt"
 #define KEY_FILAMENT   "fil_rules"
+#define KEY_AUTO_STYLE "auto_style"
+#define KEY_SEAL_TGT   "seal_tgt_c"
 
 // Defaults for the bed-temperature hysteresis if the user hasn't changed
 // them: open the vent when bed climbs above BED_OPEN_C_DEFAULT, close it
@@ -31,6 +33,7 @@ static const char *TAG = "dv_policy";
 // chamber cools.
 #define BED_OPEN_C_DEFAULT   45.0f
 #define BED_CLOSE_C_DEFAULT  35.0f
+#define BED_SEAL_C_DEFAULT   85.0f
 #define TICK_MS      1000
 
 // Material-aware behavior. When the printer publishes a known material name,
@@ -78,6 +81,8 @@ static TaskHandle_t      s_task = NULL;
 static dv_policy_mode_t  s_mode = DV_POLICY_MODE_AUTO;
 static dv_motor_target_t s_manual_target  = DV_MOTOR_TARGET_CLOSED;
 static dv_motor_target_t s_current_target = DV_MOTOR_TARGET_CLOSED;
+static dv_automation_mode_t s_automation_mode = DV_AUTOMATION_SIMPLE;
+static float             s_bed_seal_c = BED_SEAL_C_DEFAULT;
 static float             s_bed_open_c  = BED_OPEN_C_DEFAULT;
 static float             s_bed_close_c = BED_CLOSE_C_DEFAULT;
 static dc_ctl_source_t   s_source = DC_SRC_KLIPPER;
@@ -88,6 +93,7 @@ typedef struct {
     bool active;
     bool chamber_heating;   // a paired DragonBreath is deliberately heating the chamber
     float bed_temp;
+    float bed_target;
     char material[16];
     const char *state;
 } auto_input_t;
@@ -107,6 +113,7 @@ static void read_auto_input(auto_input_t *out)
                       st.printer == DC_PRINTER_PREPARING ||
                       st.printer == DC_PRINTER_PAUSED;
         out->bed_temp = st.bed_temp;
+        out->bed_target = st.bed_target;
         snprintf(out->material, sizeof(out->material), "%s", st.material);
         out->state = dc_printer_state_str(st.printer);
         // Paired DragonBreath (via the dragonbreath-klipper helper): seal while it
@@ -126,6 +133,7 @@ static void read_auto_input(auto_input_t *out)
         out->reliable = st.state == DC_BAMBU_SUBSCRIBED;
         out->active = st.printing;
         out->bed_temp = st.bed_temp;
+        out->bed_target = st.bed_target;
         snprintf(out->material, sizeof(out->material), "%s", st.filament);
         out->state = st.printing ? "printing" : "idle";
         return;
@@ -164,14 +172,28 @@ static dv_motor_target_t decide_auto_target(const auto_input_t *st)
     // residual-heat rule would otherwise open the vent.
     if (st->chamber_heating) return DV_MOTOR_TARGET_CLOSED;
 
+    // A non-zero target means the printer has commanded a heated bed. SIMPLE
+    // deliberately ignores material metadata, matching Panda Breath's proven
+    // follow-the-commanded-bed model. It also reacts during preheat, before a
+    // print reaches RUNNING.
+    if (st->bed_target > 0.0f && s_automation_mode == DV_AUTOMATION_SIMPLE) {
+        return st->bed_target >= s_bed_seal_c ? DV_MOTOR_TARGET_CLOSED
+                                              : DV_MOTOR_TARGET_OPEN;
+    }
+
     if (st->active) {
         material_pref_t mat = material_preference(st->material);
-        if (mat == MAT_PREFER_SEALED) return DV_MOTOR_TARGET_CLOSED;
-        // MAT_PREFER_OPEN and MAT_PREFER_UNKNOWN both open during a print —
-        // the tester's ask is that PLA-style vents while ABS seals; when we
-        // don't know the material we default to venting, which is the safer
-        // choice for PLA-family plastics that dominate hobby printing.
-        return DV_MOTOR_TARGET_OPEN;
+        if (s_automation_mode == DV_AUTOMATION_ADVANCED) {
+            if (mat == MAT_PREFER_SEALED) return DV_MOTOR_TARGET_CLOSED;
+            if (mat == MAT_PREFER_OPEN)   return DV_MOTOR_TARGET_OPEN;
+        }
+        // Unknown material in ADVANCED falls back to the same commanded-bed
+        // rule as SIMPLE. A missing/zero target holds instead of guessing open.
+        if (st->bed_target > 0.0f) {
+            return st->bed_target >= s_bed_seal_c ? DV_MOTOR_TARGET_CLOSED
+                                                  : DV_MOTOR_TARGET_OPEN;
+        }
+        return s_current_target;
     }
 
     // Idle / complete: use bed-temp hysteresis so residual chamber heat
@@ -249,9 +271,16 @@ static void load_persisted(void)
         s_manual_target = (t == DV_MOTOR_TARGET_OPEN) ? DV_MOTOR_TARGET_OPEN
                                                      : DV_MOTOR_TARGET_CLOSED;
     }
+    uint8_t a = 0;
+    if (nvs_get_u8(h, KEY_AUTO_STYLE, &a) == ESP_OK) {
+        s_automation_mode = (a == DV_AUTOMATION_ADVANCED)
+                                ? DV_AUTOMATION_ADVANCED
+                                : DV_AUTOMATION_SIMPLE;
+    }
     uint32_t v = 0;
     if (nvs_get_u32(h, KEY_BED_OPEN,  &v) == ESP_OK) s_bed_open_c  = centi_to_c(v);
     if (nvs_get_u32(h, KEY_BED_CLOSE, &v) == ESP_OK) s_bed_close_c = centi_to_c(v);
+    if (nvs_get_u32(h, KEY_SEAL_TGT, &v) == ESP_OK) s_bed_seal_c = centi_to_c(v);
 
     // Filament rules: override the defaults from the NVS blob if present + valid
     // (a whole number of rules). On any error nvs_get_blob leaves s_rules alone.
@@ -371,6 +400,43 @@ esp_err_t dv_policy_set_manual_target(dv_motor_target_t t)
 
 dv_motor_target_t dv_policy_get_target(void) { return s_current_target; }
 
+esp_err_t dv_policy_set_automation_mode(dv_automation_mode_t mode)
+{
+    if (mode != DV_AUTOMATION_SIMPLE && mode != DV_AUTOMATION_ADVANCED)
+        return ESP_ERR_INVALID_ARG;
+    if (s_lock == NULL) return ESP_ERR_INVALID_STATE;
+    xSemaphoreTake(s_lock, portMAX_DELAY);
+    s_automation_mode = mode;
+    nvs_handle_t h;
+    if (nvs_open(NVS_NS, NVS_READWRITE, &h) == ESP_OK) {
+        nvs_set_u8(h, KEY_AUTO_STYLE, (uint8_t)mode);
+        nvs_commit(h);
+        nvs_close(h);
+    }
+    xSemaphoreGive(s_lock);
+    return ESP_OK;
+}
+
+dv_automation_mode_t dv_policy_get_automation_mode(void) { return s_automation_mode; }
+
+esp_err_t dv_policy_set_seal_threshold(float bed_target_c)
+{
+    if (bed_target_c < 40.0f || bed_target_c > 120.0f) return ESP_ERR_INVALID_ARG;
+    if (s_lock == NULL) return ESP_ERR_INVALID_STATE;
+    xSemaphoreTake(s_lock, portMAX_DELAY);
+    s_bed_seal_c = bed_target_c;
+    nvs_handle_t h;
+    if (nvs_open(NVS_NS, NVS_READWRITE, &h) == ESP_OK) {
+        nvs_set_u32(h, KEY_SEAL_TGT, c_to_centi(bed_target_c));
+        nvs_commit(h);
+        nvs_close(h);
+    }
+    xSemaphoreGive(s_lock);
+    return ESP_OK;
+}
+
+float dv_policy_get_seal_threshold(void) { return s_bed_seal_c; }
+
 esp_err_t dv_policy_get_thresholds(float *bed_open_c, float *bed_close_c)
 {
     if (bed_open_c == NULL || bed_close_c == NULL) return ESP_ERR_INVALID_ARG;
@@ -404,6 +470,8 @@ esp_err_t dv_policy_clear(void)
     nvs_erase_key(h, KEY_MAN_TGT);
     nvs_erase_key(h, KEY_BED_OPEN);
     nvs_erase_key(h, KEY_BED_CLOSE);
+    nvs_erase_key(h, KEY_AUTO_STYLE);
+    nvs_erase_key(h, KEY_SEAL_TGT);
     nvs_commit(h);
     nvs_close(h);
     return ESP_OK;

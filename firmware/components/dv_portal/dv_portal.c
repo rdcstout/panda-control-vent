@@ -215,6 +215,7 @@ static cJSON *make_state(void)
     const char *printer_state = source == DC_SRC_NONE ? "standalone" : "unknown";
     const char *connection_state = source == DC_SRC_NONE ? "standalone" : "disconnected";
     float bed = NAN;
+    float bed_target = NAN;
     const char *material = "";
     if (source == DC_SRC_KLIPPER) {
         dc_moonraker_status_t status = {0};
@@ -223,6 +224,7 @@ static cJSON *make_state(void)
         connection_state = connected ? "subscribed" : "disconnected";
         printer_state = dc_printer_state_str(status.printer);
         bed = status.bed_temp;
+        bed_target = status.bed_target;
         material = status.material;
     } else if (source == DC_SRC_BAMBU) {
         dc_bambu_status_t status = {0};
@@ -231,6 +233,7 @@ static cJSON *make_state(void)
         connection_state = bambu_wire(status.state);
         printer_state = status.printing ? "printing" : "idle";
         bed = status.bed_temp;
+        bed_target = status.bed_target;
         material = status.filament;
     }
     cJSON_AddBoolToObject(printer, "connected", connected);
@@ -238,6 +241,8 @@ static cJSON *make_state(void)
     cJSON_AddStringToObject(printer, "state", printer_state);
     if (isnan(bed)) cJSON_AddNullToObject(printer, "bed_temperature_c");
     else cJSON_AddNumberToObject(printer, "bed_temperature_c", bed);
+    if (isnan(bed_target)) cJSON_AddNullToObject(printer, "bed_target_c");
+    else cJSON_AddNumberToObject(printer, "bed_target_c", bed_target);
     cJSON_AddStringToObject(printer, "material", material);
 
     float open_c = 45, close_c = 35;
@@ -245,6 +250,9 @@ static cJSON *make_state(void)
     cJSON *policy = cJSON_AddObjectToObject(root, "policy");
     cJSON_AddNumberToObject(policy, "bed_open_c", open_c);
     cJSON_AddNumberToObject(policy, "bed_close_c", close_c);
+    cJSON_AddStringToObject(policy, "automation_mode",
+        dv_policy_get_automation_mode() == DV_AUTOMATION_ADVANCED ? "advanced" : "simple");
+    cJSON_AddNumberToObject(policy, "bed_seal_c", dv_policy_get_seal_threshold());
 
     cJSON *wifi = cJSON_AddObjectToObject(root, "wifi");
     cJSON_AddStringToObject(wifi, "state", wifi_wire(dc_wifi_state()));
@@ -325,6 +333,9 @@ static esp_err_t settings_get(httpd_req_t *req)
     cJSON_AddNumberToObject(root, "api_version", 2);
     cJSON_AddNumberToObject(root, "bed_open_c", open_c);
     cJSON_AddNumberToObject(root, "bed_close_c", close_c);
+    cJSON_AddStringToObject(root, "automation_mode",
+        dv_policy_get_automation_mode() == DV_AUTOMATION_ADVANCED ? "advanced" : "simple");
+    cJSON_AddNumberToObject(root, "bed_seal_c", dv_policy_get_seal_threshold());
     return send_json(req, root);
 }
 
@@ -334,11 +345,26 @@ static esp_err_t settings_post(httpd_req_t *req)
     cJSON *body = recv_json(req);
     cJSON *open = body ? cJSON_GetObjectItemCaseSensitive(body, "bed_open_c") : NULL;
     cJSON *close = body ? cJSON_GetObjectItemCaseSensitive(body, "bed_close_c") : NULL;
-    if (!cJSON_IsNumber(open) || !cJSON_IsNumber(close)) { cJSON_Delete(body); return api_error(req, "400 Bad Request", "bed_open_c and bed_close_c are required"); }
+    cJSON *seal = body ? cJSON_GetObjectItemCaseSensitive(body, "bed_seal_c") : NULL;
+    cJSON *style = body ? cJSON_GetObjectItemCaseSensitive(body, "automation_mode") : NULL;
+    if (!cJSON_IsNumber(open) || !cJSON_IsNumber(close) ||
+        (seal && !cJSON_IsNumber(seal)) ||
+        (style && (!cJSON_IsString(style) ||
+                   (strcmp(style->valuestring, "simple") && strcmp(style->valuestring, "advanced"))))) {
+        cJSON_Delete(body);
+        return api_error(req, "400 Bad Request", "bed_open_c and bed_close_c are required; optional automation fields are invalid");
+    }
     float open_c = (float)open->valuedouble, close_c = (float)close->valuedouble;
+    float seal_c = seal ? (float)seal->valuedouble : dv_policy_get_seal_threshold();
+    dv_automation_mode_t automation = style && !strcmp(style->valuestring, "advanced")
+                                          ? DV_AUTOMATION_ADVANCED
+                                          : style ? DV_AUTOMATION_SIMPLE : dv_policy_get_automation_mode();
     cJSON_Delete(body);
-    if (!isfinite(open_c) || !isfinite(close_c) || close_c < 0 || open_c > 120 || dv_policy_set_thresholds(open_c, close_c) != ESP_OK)
-        return api_error(req, "400 Bad Request", "open temperature must be above close temperature and both must be 0..120 C");
+    if (!isfinite(open_c) || !isfinite(close_c) || !isfinite(seal_c) || close_c < 0 || open_c > 120 ||
+        dv_policy_set_thresholds(open_c, close_c) != ESP_OK ||
+        dv_policy_set_seal_threshold(seal_c) != ESP_OK ||
+        dv_policy_set_automation_mode(automation) != ESP_OK)
+        return api_error(req, "400 Bad Request", "temperatures or automation mode are invalid");
     ++s_api_revision;
     cJSON *reply = cJSON_CreateObject();
     cJSON_AddItemToObject(reply, "state", make_state());
