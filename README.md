@@ -54,7 +54,7 @@ on retail hardware. The in-place persistence contract is documented in
 
 ## Status
 
-Version `0.1.0-rc.3` adds simple commanded-bed vent automation by default, an
+Version `0.1.0-rc.4` adds simple commanded-bed vent automation by default, an
 optional advanced material-rule mode for Bambu and Klipper, immediate Bambu
 reconnection, automatic setup-AP fallback, and independent vent/chamber lighting.
 Build and static verification are complete; installation and end-to-end hardware
