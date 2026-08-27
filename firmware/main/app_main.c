@@ -113,7 +113,7 @@ static void update_rgb_from_state(void)
 //   USER short click, AUTO   → switch to MANUAL and reverse the vent state
 //   USER short click, MANUAL → toggle the vent state
 //   USER long press (3 s)    → switch to AUTO
-//   BOOT long press (3 s)    → factory reset (wipe NVS, reboot)
+//   BOOT long press (3 s)    → clear network/printer/policy setup, reboot
 static void on_button(dv_button_id_t id, dv_button_event_t ev)
 {
     if (id == DV_BUTTON_USER && ev == DV_BUTTON_SHORT) {

@@ -18,6 +18,10 @@ image is released yet.
   behavior as the main vent lights.
 - Provide a complete embedded setup, maintenance, recovery, and operational UI
   using the restrained Panda Control visual language.
+- Preserve an existing DragonVent 0.5.9 installation's Wi-Fi, printer binding,
+  policy, calibration, and lighting settings during an OTA upgrade.
+- Keep the setup access point off after normal Wi-Fi connects and bring it back
+  only as an optional connection-failure fallback.
 - Keep Panda Control desktop focused on everyday operation of devices that are
   already configured.
 
@@ -36,7 +40,8 @@ hardware testing.
 
 See [Product Contract](docs/PRODUCT_CONTRACT.md) for the embedded-versus-desktop
 boundary and [LED Hardware Map](docs/LED_HARDWARE_MAP.md) for the mapping proven
-on retail hardware.
+on retail hardware. The in-place persistence contract is documented in
+[Upgrade Compatibility](docs/UPGRADE_COMPATIBILITY.md).
 
 ## Development safety
 
@@ -49,5 +54,7 @@ on retail hardware.
 
 ## Status
 
-Initial fork established. The first implementation milestone is the
-backward-compatible two-zone lighting engine.
+Version `0.1.0-rc.1` contains the complete embedded interface, immediate Bambu
+reconnection flow, automatic setup-AP fallback, and independent vent/chamber
+lighting implementation. Build and static verification are complete; installation
+and end-to-end hardware validation remain release-candidate tests.

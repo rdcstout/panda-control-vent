@@ -20,7 +20,10 @@
 #include "esp_http_server.h"
 #include "esp_mac.h"
 #include "esp_netif.h"
+#include "esp_system.h"
 #include "esp_wifi.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
 #include "nvs.h"
 
 static uint32_t s_api_revision = 1;
@@ -164,6 +167,18 @@ static const char *wifi_wire(dc_wifi_state_t state)
     return "unknown";
 }
 
+static const char *bambu_wire(dc_bambu_state_t state)
+{
+    switch (state) {
+    case DC_BAMBU_DISABLED: return "disabled";
+    case DC_BAMBU_DISCONNECTED: return "disconnected";
+    case DC_BAMBU_CONNECTING: return "connecting";
+    case DC_BAMBU_CONNECTED: return "connected";
+    case DC_BAMBU_SUBSCRIBED: return "subscribed";
+    }
+    return "unknown";
+}
+
 static cJSON *make_state(void)
 {
     const esp_app_desc_t *app = esp_app_get_description();
@@ -198,12 +213,14 @@ static cJSON *make_state(void)
     cJSON_AddStringToObject(printer, "source", dc_source_str(source));
     bool connected = false;
     const char *printer_state = source == DC_SRC_NONE ? "standalone" : "unknown";
+    const char *connection_state = source == DC_SRC_NONE ? "standalone" : "disconnected";
     float bed = NAN;
     const char *material = "";
     if (source == DC_SRC_KLIPPER) {
         dc_moonraker_status_t status = {0};
         dc_moonraker_get_status(&status);
         connected = status.state == DC_MK_SUBSCRIBED;
+        connection_state = connected ? "subscribed" : "disconnected";
         printer_state = dc_printer_state_str(status.printer);
         bed = status.bed_temp;
         material = status.material;
@@ -211,11 +228,13 @@ static cJSON *make_state(void)
         dc_bambu_status_t status = {0};
         dc_bambu_get_status(&status);
         connected = status.connected;
+        connection_state = bambu_wire(status.state);
         printer_state = status.printing ? "printing" : "idle";
         bed = status.bed_temp;
         material = status.filament;
     }
     cJSON_AddBoolToObject(printer, "connected", connected);
+    cJSON_AddStringToObject(printer, "connection", connection_state);
     cJSON_AddStringToObject(printer, "state", printer_state);
     if (isnan(bed)) cJSON_AddNullToObject(printer, "bed_temperature_c");
     else cJSON_AddNumberToObject(printer, "bed_temperature_c", bed);
@@ -257,17 +276,7 @@ static esp_err_t info_get(httpd_req_t *req)
     cJSON *ui = cJSON_AddObjectToObject(root, "ui");
     cJSON_AddNumberToObject(ui, "schema", 1);
     cJSON_AddStringToObject(ui, "product", "dragonvent");
-    cJSON_AddStringToObject(ui, "display_name", "DragonVent");
-    // Opt into the shared SPA's update check (dragon-core >= v0.7.0). It asks
-    // GitHub for the latest stable release of this repo and, when newer, shows
-    // the version, the expected SHA-256 and a download link — it never
-    // auto-flashes. The SPA picks the asset by prefix, excluding any name
-    // containing "factory", so this resolves to dragonvent-<tag>-ota.bin (the
-    // web-uploadable app image) and never the full USB image. Local/dev builds
-    // skip the request entirely, so this is silent until a tagged build runs.
-    cJSON *update = cJSON_AddObjectToObject(root, "update");
-    cJSON_AddStringToObject(update, "repo", "justinh-rahb/DragonVent");
-    cJSON_AddStringToObject(update, "asset_prefix", "dragonvent-");
+    cJSON_AddStringToObject(ui, "display_name", "Panda Control Vent");
     return send_json(req, root);
 }
 
@@ -472,6 +481,45 @@ static esp_err_t bambu_discovered_get(httpd_req_t *req)
     return send_json(req, root);
 }
 
+// The product UI intentionally exposes one setup-AP decision: allow a fallback
+// AP when normal Wi-Fi cannot connect, or disable it. Advanced SSID, gateway and
+// mode controls remain compatible at the lower-level API but are not part of the
+// normal setup flow.
+static esp_err_t setup_ap_post(httpd_req_t *req)
+{
+    if (auth_reject(req)) return ESP_OK;
+    cJSON *body = recv_json(req);
+    cJSON *enabled = body ? cJSON_GetObjectItemCaseSensitive(body, "enabled") : NULL;
+    if (!cJSON_IsBool(enabled)) {
+        cJSON_Delete(body);
+        return api_error(req, "400 Bad Request", "enabled must be true or false");
+    }
+    dc_wifi_ap_config_t config = {0};
+    esp_err_t err = dc_wifi_get_ap_config(&config);
+    config.mode = cJSON_IsTrue(enabled) ? DC_WIFI_AP_FALLBACK : DC_WIFI_AP_OFF;
+    cJSON_Delete(body);
+    if (err != ESP_OK) return api_error(req, "500 Internal Server Error", esp_err_to_name(err));
+    cJSON *reply = cJSON_CreateObject();
+    cJSON_AddBoolToObject(reply, "ok", true);
+    cJSON_AddBoolToObject(reply, "rebooting", true);
+    cJSON_AddBoolToObject(reply, "enabled", config.mode == DC_WIFI_AP_FALLBACK);
+    send_json(req, reply);
+    vTaskDelay(pdMS_TO_TICKS(250));
+    return dc_wifi_set_ap_config_and_reboot(&config);
+}
+
+static esp_err_t restart_post(httpd_req_t *req)
+{
+    if (auth_reject(req)) return ESP_OK;
+    cJSON *reply = cJSON_CreateObject();
+    cJSON_AddBoolToObject(reply, "ok", true);
+    cJSON_AddBoolToObject(reply, "rebooting", true);
+    send_json(req, reply);
+    vTaskDelay(pdMS_TO_TICKS(350));
+    esp_restart();
+    return ESP_OK;
+}
+
 // Parse an [r,g,b] array (0-255) into out, only if present + valid.
 static void patch_rgb(cJSON *body, const char *key, uint8_t out[3])
 {
@@ -668,7 +716,7 @@ static cJSON *describe_product(void *ctx)
     // across the whole setup host, so it does not need to share their card.
     cJSON *printer = cJSON_CreateObject();
     cJSON_AddStringToObject(printer, "title", "Printer source");
-    cJSON_AddStringToObject(printer, "description", "Choose one controller. Source changes take effect after restart.");
+    cJSON_AddStringToObject(printer, "description", "Choose one controller. Changes apply immediately.");
     cJSON *fields = cJSON_AddArrayToObject(printer, "fields");
     cJSON *source = field(fields, "source", "Control source", "select", dc_source_str(dc_source_get()));
     cJSON *options = cJSON_AddArrayToObject(source, "options");
@@ -694,7 +742,9 @@ static cJSON *describe_product(void *ctx)
     fields = cJSON_AddArrayToObject(bambu, "fields");
     field(fields, "bambu_host", "Bambu host", "text", bb.host);
     field(fields, "bambu_serial", "Bambu serial", "text", bb.serial);
-    cJSON_AddBoolToObject(field(fields, "bambu_code", "Bambu access code", "text", ""), "secret", true);
+    cJSON *code_field = field(fields, "bambu_code", "Bambu access code", "text", "");
+    cJSON_AddBoolToObject(code_field, "secret", true);
+    cJSON_AddBoolToObject(code_field, "configured", bb.code[0] != '\0');
     // LAN discovery: the shared SPA renders a "scan" button + picker from this
     // block. It GETs `endpoint`, reads the `list` array, shows name/host/model,
     // and on pick copies each discovered property into the mapped setup field.
@@ -759,8 +809,6 @@ static esp_err_t apply_product(const cJSON *values, void *ctx, char *message, si
         else if (!strcmp(source_text, "bambu")) source = DC_SRC_BAMBU;
         else if (!strcmp(source_text, "none")) source = DC_SRC_NONE;
         else { snprintf(message, message_size, "Unknown control source"); return ESP_ERR_INVALID_ARG; }
-        esp_err_t err = dc_source_set(source);
-        if (err != ESP_OK) return err;
     }
     const char *mk_host = string_value(values, "moonraker_host");
     if (mk_host) {
@@ -778,8 +826,23 @@ static esp_err_t apply_product(const cJSON *values, void *ctx, char *message, si
         snprintf(config.host, sizeof(config.host), "%s", bb_host);
         const char *serial = string_value(values, "bambu_serial"); if (serial) snprintf(config.serial, sizeof(config.serial), "%s", serial);
         const char *code = string_value(values, "bambu_code"); if (code && *code) snprintf(config.code, sizeof(config.code), "%s", code);
+        if (source == DC_SRC_BAMBU && (!config.host[0] || !config.serial[0] || !config.code[0])) {
+            snprintf(message, message_size, "Choose a printer and enter its LAN access code");
+            return ESP_ERR_INVALID_ARG;
+        }
         esp_err_t err = dc_bambu_set_config(&config);
         if (err != ESP_OK) return err;
+    }
+    esp_err_t source_err = dc_source_set(source);
+    if (source_err != ESP_OK) return source_err;
+    if (source == DC_SRC_BAMBU) {
+        esp_err_t err = dc_bambu_start();
+        if (err != ESP_OK) {
+            snprintf(message, message_size, "Saved, but Bambu could not start: %s", esp_err_to_name(err));
+            return err;
+        }
+    } else {
+        dc_bambu_stop();
     }
     // Blank means "unchanged" (the field is never pre-filled, so every save would
     // otherwise clear it); a single "-" is the explicit clear.
@@ -811,7 +874,10 @@ static esp_err_t apply_product(const cJSON *values, void *ctx, char *message, si
         dv_policy_set_thresholds((float)open_c, (float)close_c) != ESP_OK) {
         snprintf(message, message_size, "Open temperature must be above close temperature"); return ESP_ERR_INVALID_ARG;
     }
-    snprintf(message, message_size, "Settings saved. Restart to apply a source change.");
+    snprintf(message, message_size,
+             source == DC_SRC_BAMBU ? "Settings saved. Connecting to Bambu now." :
+             source == DC_SRC_NONE ? "Settings saved and applied." :
+             "Settings saved. Restart to start the Klipper source.");
     return ESP_OK;
 }
 
@@ -839,9 +905,11 @@ esp_err_t dv_portal_start(void)
         { .uri = "/api/v2/filament", .method = HTTP_POST, .handler = filament_post },
         { .uri = "/api/v2/bambu/discovered", .method = HTTP_GET, .handler = bambu_discovered_get },
         { .uri = "/api/v2/bambu/scan", .method = HTTP_POST, .handler = bambu_scan_post },
+        { .uri = "/api/v2/setup-ap", .method = HTTP_POST, .handler = setup_ap_post },
+        { .uri = "/api/v2/restart", .method = HTTP_POST, .handler = restart_post },
     };
     const dc_portal_config_t config = {
-        .product = "dragonvent", .display_name = "DragonVent",
+        .product = "dragonvent", .display_name = "Panda Control Vent",
         .product_routes = routes, .product_route_count = sizeof(routes) / sizeof(routes[0]),
         .describe_product = describe_product, .apply_product = apply_product,
         .authorize = authorize,
