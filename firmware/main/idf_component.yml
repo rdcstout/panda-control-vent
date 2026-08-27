@@ -27,7 +27,3 @@ dependencies:
     git: https://github.com/justinh-rahb/dragon-core.git
     path: components/dc_portal
     version: v0.30.0
-  dc_lighting:
-    git: https://github.com/justinh-rahb/dragon-core.git
-    path: components/dc_lighting
-    version: v0.30.0

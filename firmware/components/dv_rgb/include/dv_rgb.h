@@ -49,6 +49,30 @@ typedef enum {
     DV_PS_ERROR,
 } dv_printer_status_t;
 
+/* Full lighting policy for the independently assignable chamber-light zone.
+ * It intentionally mirrors the primary vent-light fields so neither zone is a
+ * reduced-function secondary output. */
+typedef struct {
+    bool    enabled;
+    uint8_t brightness;
+    uint8_t open[3];
+    uint8_t closed[3];
+    uint8_t printing[3];
+    bool    use_printing;
+    bool    use_temp;
+    uint8_t temp_min_c;
+    uint8_t temp_max_c;
+    uint8_t effect;
+    uint8_t speed;
+    uint8_t error[3];
+    bool    use_error;
+    uint8_t mode;
+    uint8_t idle[3];
+    uint8_t prep[3];
+    uint8_t paused[3];
+    uint8_t complete[3];
+} dv_lighting_profile_t;
+
 // NOTE: append new fields at the END — cfg_load tolerates a shorter stored blob
 // (older versions keep their values; new fields fall back to these defaults).
 typedef struct {
@@ -75,6 +99,8 @@ typedef struct {
                              // direction. Use when a strip is fed from the far
                              // connector so it runs opposite the other (e.g. lights
                              // "circle" the printer). Indexed by s_strips[] order.
+    bool chamber_independent; // false: original whole-string rendering
+    dv_lighting_profile_t chamber;
 } dv_lighting_t;
 
 // Detect the connected strips, load saved config, drive the initial color.

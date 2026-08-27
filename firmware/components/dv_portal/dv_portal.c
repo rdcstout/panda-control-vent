@@ -251,7 +251,7 @@ static esp_err_t info_get(httpd_req_t *req)
     cJSON_AddStringToObject(root, "project", "dragonvent");
     add_device_id(root);
     cJSON *caps = cJSON_AddArrayToObject(root, "capabilities");
-    const char *values[] = { "vent_manual", "vent_auto", "vent_calibrate", "source_status", "polling", "provisioning" };
+    const char *values[] = { "vent_manual", "vent_auto", "vent_calibrate", "source_status", "polling", "provisioning", "lighting_zones" };
     for (size_t i = 0; i < sizeof(values) / sizeof(values[0]); ++i)
         cJSON_AddItemToArray(caps, cJSON_CreateString(values[i]));
     cJSON *ui = cJSON_AddObjectToObject(root, "ui");
@@ -341,6 +341,56 @@ static void add_rgb(cJSON *root, const char *key, const uint8_t c[3])
     cJSON_AddItemToArray(a, cJSON_CreateNumber(c[2]));
 }
 
+static void add_profile(cJSON *root, const dv_lighting_profile_t *p)
+{
+    cJSON_AddBoolToObject(root, "enabled", p->enabled);
+    cJSON_AddNumberToObject(root, "brightness", p->brightness);
+    add_rgb(root, "open", p->open);
+    add_rgb(root, "closed", p->closed);
+    add_rgb(root, "printing", p->printing);
+    cJSON_AddBoolToObject(root, "use_printing", p->use_printing);
+    cJSON_AddBoolToObject(root, "use_temp", p->use_temp);
+    cJSON_AddNumberToObject(root, "temp_min_c", p->temp_min_c);
+    cJSON_AddNumberToObject(root, "temp_max_c", p->temp_max_c);
+    cJSON_AddNumberToObject(root, "effect", p->effect);
+    cJSON_AddNumberToObject(root, "speed", p->speed);
+    add_rgb(root, "error", p->error);
+    cJSON_AddBoolToObject(root, "use_error", p->use_error);
+    cJSON_AddNumberToObject(root, "mode", p->mode);
+    add_rgb(root, "idle", p->idle);
+    add_rgb(root, "prep", p->prep);
+    add_rgb(root, "paused", p->paused);
+    add_rgb(root, "complete", p->complete);
+}
+
+static void primary_profile(const dv_lighting_t *c, dv_lighting_profile_t *p)
+{
+    *p = (dv_lighting_profile_t){
+        .enabled = c->enabled, .brightness = c->brightness,
+        .use_printing = c->use_printing, .use_temp = c->use_temp,
+        .temp_min_c = c->temp_min_c, .temp_max_c = c->temp_max_c,
+        .effect = c->effect, .speed = c->speed,
+        .use_error = c->use_error, .mode = c->mode,
+    };
+    memcpy(p->open, c->open, 3); memcpy(p->closed, c->closed, 3);
+    memcpy(p->printing, c->printing, 3); memcpy(p->error, c->error, 3);
+    memcpy(p->idle, c->idle, 3); memcpy(p->prep, c->prep, 3);
+    memcpy(p->paused, c->paused, 3); memcpy(p->complete, c->complete, 3);
+}
+
+static void profile_to_primary(const dv_lighting_profile_t *p, dv_lighting_t *c)
+{
+    c->enabled = p->enabled; c->brightness = p->brightness;
+    c->use_printing = p->use_printing; c->use_temp = p->use_temp;
+    c->temp_min_c = p->temp_min_c; c->temp_max_c = p->temp_max_c;
+    c->effect = p->effect; c->speed = p->speed;
+    c->use_error = p->use_error; c->mode = p->mode;
+    memcpy(c->open, p->open, 3); memcpy(c->closed, p->closed, 3);
+    memcpy(c->printing, p->printing, 3); memcpy(c->error, p->error, 3);
+    memcpy(c->idle, p->idle, 3); memcpy(c->prep, p->prep, 3);
+    memcpy(c->paused, p->paused, 3); memcpy(c->complete, p->complete, 3);
+}
+
 static cJSON *lighting_json(void)
 {
     dv_lighting_t c;
@@ -368,6 +418,23 @@ static cJSON *lighting_json(void)
     cJSON *rs = cJSON_AddArrayToObject(root, "rev_strip");
     if (rs) { cJSON_AddItemToArray(rs, cJSON_CreateBool(c.rev_strip[0])); cJSON_AddItemToArray(rs, cJSON_CreateBool(c.rev_strip[1])); }
     cJSON_AddNumberToObject(root, "strips", dv_rgb_strip_count());
+    cJSON *zones = cJSON_AddObjectToObject(root, "zones");
+    if (zones) {
+        cJSON_AddBoolToObject(zones, "linked", !c.chamber_independent);
+        dv_lighting_profile_t vent;
+        primary_profile(&c, &vent);
+        cJSON *vent_json = cJSON_AddObjectToObject(zones, "vent");
+        if (vent_json) add_profile(vent_json, &vent);
+        cJSON *chamber_json = cJSON_AddObjectToObject(zones, "chamber");
+        if (chamber_json) add_profile(chamber_json, &c.chamber);
+        cJSON *mapping = cJSON_AddObjectToObject(zones, "mapping");
+        if (mapping) {
+            cJSON_AddNumberToObject(mapping, "vent_first", 0);
+            cJSON_AddNumberToObject(mapping, "vent_count", 11);
+            cJSON_AddNumberToObject(mapping, "chamber_first", 11);
+            cJSON_AddNumberToObject(mapping, "chamber_count", 5);
+        }
+    }
     return root;
 }
 
@@ -420,6 +487,36 @@ static void patch_rgb(cJSON *body, const char *key, uint8_t out[3])
     }
 }
 
+static void patch_profile(cJSON *body, dv_lighting_profile_t *p)
+{
+    if (!cJSON_IsObject(body)) return;
+    cJSON *e;
+    if ((e = cJSON_GetObjectItemCaseSensitive(body, "enabled")) && cJSON_IsBool(e)) p->enabled = cJSON_IsTrue(e);
+    if ((e = cJSON_GetObjectItemCaseSensitive(body, "use_printing")) && cJSON_IsBool(e)) p->use_printing = cJSON_IsTrue(e);
+    if ((e = cJSON_GetObjectItemCaseSensitive(body, "use_temp")) && cJSON_IsBool(e)) p->use_temp = cJSON_IsTrue(e);
+    if ((e = cJSON_GetObjectItemCaseSensitive(body, "brightness")) && cJSON_IsNumber(e)) {
+        int v = e->valueint; p->brightness = (uint8_t)(v < 0 ? 0 : v > 255 ? 255 : v);
+    }
+    if ((e = cJSON_GetObjectItemCaseSensitive(body, "temp_min_c")) && cJSON_IsNumber(e)) {
+        int v = e->valueint; p->temp_min_c = (uint8_t)(v < 0 ? 0 : v > 120 ? 120 : v);
+    }
+    if ((e = cJSON_GetObjectItemCaseSensitive(body, "temp_max_c")) && cJSON_IsNumber(e)) {
+        int v = e->valueint; p->temp_max_c = (uint8_t)(v < 0 ? 0 : v > 120 ? 120 : v);
+    }
+    if ((e = cJSON_GetObjectItemCaseSensitive(body, "effect")) && cJSON_IsNumber(e)) {
+        int v = e->valueint; p->effect = (uint8_t)(v < 0 ? 0 : v > 7 ? 7 : v);
+    }
+    if ((e = cJSON_GetObjectItemCaseSensitive(body, "speed")) && cJSON_IsNumber(e)) {
+        int v = e->valueint; p->speed = (uint8_t)(v < 0 ? 0 : v > 255 ? 255 : v);
+    }
+    if ((e = cJSON_GetObjectItemCaseSensitive(body, "use_error")) && cJSON_IsBool(e)) p->use_error = cJSON_IsTrue(e);
+    if ((e = cJSON_GetObjectItemCaseSensitive(body, "mode")) && cJSON_IsNumber(e)) p->mode = (uint8_t)(e->valueint & 1);
+    patch_rgb(body, "open", p->open); patch_rgb(body, "closed", p->closed);
+    patch_rgb(body, "printing", p->printing); patch_rgb(body, "error", p->error);
+    patch_rgb(body, "idle", p->idle); patch_rgb(body, "prep", p->prep);
+    patch_rgb(body, "paused", p->paused); patch_rgb(body, "complete", p->complete);
+}
+
 static esp_err_t lighting_post(httpd_req_t *req)
 {
     if (auth_reject(req)) return ESP_OK;
@@ -462,6 +559,21 @@ static esp_err_t lighting_post(httpd_req_t *req)
     patch_rgb(body, "prep", c.prep);
     patch_rgb(body, "paused", c.paused);
     patch_rgb(body, "complete", c.complete);
+
+    cJSON *zones = cJSON_GetObjectItemCaseSensitive(body, "zones");
+    if (cJSON_IsObject(zones)) {
+        cJSON *linked = cJSON_GetObjectItemCaseSensitive(zones, "linked");
+        if (cJSON_IsBool(linked)) c.chamber_independent = !cJSON_IsTrue(linked);
+        cJSON *vent_json = cJSON_GetObjectItemCaseSensitive(zones, "vent");
+        if (cJSON_IsObject(vent_json)) {
+            dv_lighting_profile_t vent;
+            primary_profile(&c, &vent);
+            patch_profile(vent_json, &vent);
+            profile_to_primary(&vent, &c);
+        }
+        cJSON *chamber_json = cJSON_GetObjectItemCaseSensitive(zones, "chamber");
+        if (cJSON_IsObject(chamber_json)) patch_profile(chamber_json, &c.chamber);
+    }
     cJSON_Delete(body);
 
     dv_rgb_set_config(&c);

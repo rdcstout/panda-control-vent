@@ -20,6 +20,10 @@ static const char *TAG = "dv_rgb";
  * SPI+DMA: the classic ESP32 RMT refill ISR can be starved and corrupt a WS2812
  * frame, so DragonVent declares SPI+DMA transport for its two outputs. */
 #define LEDS_PER_STRIP 30
+#define VENT_FIRST_PIXEL 0
+#define VENT_PIXEL_COUNT 11
+#define CHAMBER_FIRST_PIXEL 11
+#define CHAMBER_PIXEL_COUNT 5
 #define MAX_STRIPS 2
 #define CFG_NVS_NS "app_nvs"
 #define CFG_NVS_KEY "lighting"
@@ -36,6 +40,17 @@ static dv_lighting_t s_cfg = {
     .error = {255, 0, 0}, .use_error = false,
     .mode = DV_LIGHT_MODE_VENT,
     .idle = {255, 255, 255}, .prep = {248, 163, 35}, .paused = {255, 255, 255}, .complete = {0, 255, 42},
+    .chamber_independent = false,
+    .chamber = {
+        .enabled = true, .brightness = 255,
+        .open = {255, 255, 255}, .closed = {255, 255, 255}, .printing = {255, 255, 255},
+        .use_printing = false, .use_temp = false, .temp_min_c = 25, .temp_max_c = 60,
+        .effect = DV_FX_SOLID, .speed = 128,
+        .error = {255, 0, 0}, .use_error = false,
+        .mode = DV_LIGHT_MODE_VENT,
+        .idle = {255, 255, 255}, .prep = {248, 163, 35},
+        .paused = {255, 255, 255}, .complete = {0, 255, 42},
+    },
 };
 
 static int s_target = DV_MOTOR_TARGET_CLOSED;
@@ -52,6 +67,18 @@ static const uint8_t *printer_status_color(void)
     case DV_PS_COMPLETE: return s_cfg.complete;
     case DV_PS_ERROR: return s_cfg.error;
     default: return s_cfg.idle;
+    }
+}
+
+static const uint8_t *profile_status_color(const dv_lighting_profile_t *cfg)
+{
+    switch (s_pstatus) {
+    case DV_PS_PREPARING: return cfg->prep;
+    case DV_PS_PRINTING: return cfg->printing;
+    case DV_PS_PAUSED: return cfg->paused;
+    case DV_PS_COMPLETE: return cfg->complete;
+    case DV_PS_ERROR: return cfg->error;
+    default: return cfg->idle;
     }
 }
 
@@ -79,6 +106,28 @@ static dc_rgb_t base_color(void)
     return (dc_rgb_t){base[0], base[1], base[2]};
 }
 
+static dc_rgb_t profile_base_color(const dv_lighting_profile_t *cfg)
+{
+    const uint8_t *base;
+    uint8_t gradient[3];
+    if (cfg->mode == DV_LIGHT_MODE_PRINTER) {
+        base = profile_status_color(cfg);
+    } else if (cfg->use_printing && s_printing) {
+        base = cfg->printing;
+    } else if (cfg->use_temp && !isnan(s_bed)) {
+        int lo = cfg->temp_min_c, hi = cfg->temp_max_c;
+        float factor = hi > lo ? (s_bed - lo) / (float)(hi - lo) : 0;
+        if (factor < 0) factor = 0;
+        if (factor > 1) factor = 1;
+        for (int i = 0; i < 3; ++i)
+            gradient[i] = (uint8_t)(cfg->open[i] + (int)((cfg->closed[i] - cfg->open[i]) * factor));
+        base = gradient;
+    } else {
+        base = s_target == DV_MOTOR_TARGET_OPEN ? cfg->open : cfg->closed;
+    }
+    return (dc_rgb_t){base[0], base[1], base[2]};
+}
+
 /* Map DragonVent's effect ids (stable 0..7 for the SPA dropdown and saved NVS
  * configs) onto the shared engine's enum, which numbers effects differently. */
 static dc_lighting_effect_t core_effect(uint8_t effect)
@@ -99,6 +148,44 @@ static dc_lighting_effect_t core_effect(uint8_t effect)
  * shared renderer paints the selected color/effect over the declared layout. */
 static void apply_locked(void)
 {
+    if (s_cfg.chamber_independent) {
+        dc_lighting_zone_t zones[2] = {
+            {
+                .first_pixel = VENT_FIRST_PIXEL,
+                .pixel_count = VENT_PIXEL_COUNT,
+                .enabled = s_cfg.enabled,
+                .brightness = s_cfg.brightness,
+                .color = base_color(),
+                .effect = core_effect(s_cfg.effect),
+                .speed = s_cfg.speed,
+            },
+            {
+                .first_pixel = CHAMBER_FIRST_PIXEL,
+                .pixel_count = CHAMBER_PIXEL_COUNT,
+                .enabled = s_cfg.chamber.enabled,
+                .brightness = s_cfg.chamber.brightness,
+                .color = profile_base_color(&s_cfg.chamber),
+                .effect = core_effect(s_cfg.chamber.effect),
+                .speed = s_cfg.chamber.speed,
+            },
+        };
+        if (s_cfg.use_error && s_error) {
+            zones[0].color = (dc_rgb_t){s_cfg.error[0], s_cfg.error[1], s_cfg.error[2]};
+            zones[0].effect = DC_LIGHTING_STROBE;
+            zones[0].speed = 64;
+        }
+        if (s_cfg.chamber.use_error && s_error) {
+            zones[1].color = (dc_rgb_t){s_cfg.chamber.error[0], s_cfg.chamber.error[1], s_cfg.chamber.error[2]};
+            zones[1].effect = DC_LIGHTING_STROBE;
+            zones[1].speed = 64;
+        }
+        (void)dc_lighting_set_brightness(255);
+        (void)dc_lighting_set_zones(zones, 2);
+        return;
+    }
+
+    (void)dc_lighting_clear_zones();
+    (void)dc_lighting_set_brightness(s_cfg.brightness);
     if (!s_cfg.enabled) { (void)dc_lighting_off(); return; }
     /* A print error takes top precedence and flashes to demand attention. */
     if (s_cfg.use_error && s_error) {
@@ -123,7 +210,7 @@ esp_err_t dv_rgb_set_config(const dv_lighting_t *cfg)
     xSemaphoreTake(s_lock, portMAX_DELAY);
     s_cfg = *cfg;
     if (s_cfg.effect > DV_FX_CYLON) s_cfg.effect = DV_FX_SOLID;
-    (void)dc_lighting_set_brightness(s_cfg.brightness);
+    if (s_cfg.chamber.effect > DV_FX_CYLON) s_cfg.chamber.effect = DV_FX_SOLID;
     for (int i = 0; i < s_count && i < MAX_STRIPS; ++i)
         (void)dc_lighting_set_output_reverse(i, s_cfg.rev_strip[i]);
     apply_locked();
