@@ -1,19 +1,20 @@
 # scripts
 
-Small helpers for flashing and debugging DragonVent.
+Small compatibility helpers for backing up, recovering, and diagnosing Panda
+Control Vent hardware.
 
 The old `openvent` and `openvent-diag` names remain as compatibility wrappers
 during the repository rebrand.
 
 ## `dragonvent`
 
-Flashing and backup wrapper around `esptool`. See `dragonvent help`.
+Flashing and backup wrapper retained under its inherited command name. See
+`dragonvent help`.
 
 ```sh
 scripts/dragonvent backup                    # dump the whole flash to a .bin
 scripts/dragonvent restore my-backup.bin     # flash a backup back
-scripts/dragonvent install -t v0.2.3         # download + flash a release
-scripts/dragonvent install                   # (no -t) → latest release
+scripts/dragonvent install -t v0.1.0-rc.10   # download + upload over stock
 ```
 
 ## `dragonvent-diag` — capture motor diagnostic logs
@@ -38,7 +39,7 @@ scripts/dragonvent-diag -p /dev/tty.usbserial-0001   # or specify one
 
 **What to do while it's running:**
 
-1. Load the portal (`http://DragonVent.local/` or the AP IP).
+1. Load the Panda Control Vent portal using its current IP address or AP IP.
 2. Go to the Home tab and click **Open vent**. Wait at least 5 seconds even
    if the motor doesn't stop — the retry loop is what we want to see.
 3. Click **Close vent** and wait for it to close.

@@ -1,11 +1,45 @@
 # Changelog
 
-All notable changes to the **DragonVent** firmware are documented here.
+All notable changes to the **Panda Control Vent** firmware are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/); versions are the
 firmware release tags (`vX.Y.Z`). The release workflow pulls the matching section
 below into the GitHub Release notes.
 
 ## [Unreleased]
+
+## [0.1.0-rc.10] - 2026-09-01
+
+### Added
+- Optional **Dim while idle** control for the independent chamber-light zone;
+  idle brightness is reduced to 20% without affecting printing brightness.
+- Optional **Follow printer chamber light** control. On Bambu printers, the
+  chamber-light zone follows the factory light's reported MQTT on/off state.
+
+### Changed
+- Give Vent State and Printer Status lighting modes distinct, unambiguous color
+  controls; the legacy printing-color override is retired.
+- Correct the lighting map text to match the hardware-proven zero-based ranges:
+  vent LEDs 0-10 and chamber LEDs 11-15.
+- Rebrand the hostname, mDNS service, and generated setup/recovery AP from
+  DragonVent to Panda Control Vent while preserving custom AP names.
+- Show the active printing and cooldown policies directly beneath the Overview
+  summary, including the configured automatic closing temperature.
+- When **Dim while idle** is enabled, keep the Idle color at full brightness for
+  three seconds after any job-ending transition before reducing it to 20%.
+  Startup already in Idle still dims immediately; pause/resume is unaffected.
+
+### Fixed
+- Preserve Bambu's detailed print phase through the status and RGB pipelines so
+  manual or automatic pauses use the configured Paused color instead of the
+  Printing color. Preparing, Completed, and Error now retain their distinct
+  configured colors as well.
+- Match Spooly's proven Bambu stop/error handling: `FAILED` with a zero
+  `print_error` is a user-stopped/idle state, while a nonzero error code uses the
+  configured Error color.
+- Match Spooly's one-shot Bambu completion behavior: show the Completed color
+  for 7.5 seconds after an observed active job, then return to Idle even when an
+  X1 printer leaves `gcode_state` at `FINISH`. A stale `FINISH` seen at startup
+  no longer produces a false completion state.
 
 ## [0.5.9] - 2026-08-26
 

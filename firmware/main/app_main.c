@@ -23,9 +23,9 @@ static const char *TAG = "dragonvent";
 static esp_err_t configure_network_identity(void)
 {
     const dc_wifi_identity_t identity = {
-        .hostname = "dragonvent",
-        .instance_name = "DragonVent",
-        .ap_ssid_prefix = "DragonVent_",
+        .hostname = "panda-control-vent",
+        .instance_name = "Panda Control Vent",
+        .ap_ssid_prefix = "Panda_Control_Vent_",
         .ap_password = DC_WIFI_DEFAULT_AP_PASSWORD,
     };
     return dc_wifi_set_identity(&identity);
@@ -78,14 +78,29 @@ static void update_rgb_from_state(void)
 {
     dv_printer_status_t status = DV_PS_NONE;
     float bed = NAN;
+    bool printer_light_known = false;
+    bool printer_light_on = false;
     switch (dc_source_get()) {
     case DC_SRC_BAMBU: {
         dc_bambu_status_t st = {0};
         dc_bambu_get_status(&st);
-        status = st.error ? DV_PS_ERROR
-               : st.printing ? DV_PS_PRINTING
-               : st.connected ? DV_PS_IDLE : DV_PS_NONE;   // Bambu exposes a coarse status
+        switch (st.print_state) {
+        case DC_BAMBU_PRINT_IDLE:        status = DV_PS_IDLE; break;
+        case DC_BAMBU_PRINT_DOWNLOADING:
+        case DC_BAMBU_PRINT_PREPARING:   status = DV_PS_PREPARING; break;
+        case DC_BAMBU_PRINT_PRINTING:    status = DV_PS_PRINTING; break;
+        case DC_BAMBU_PRINT_PAUSED:      status = DV_PS_PAUSED; break;
+        case DC_BAMBU_PRINT_COMPLETE:    status = DV_PS_COMPLETE; break;
+        case DC_BAMBU_PRINT_ERROR:       status = DV_PS_ERROR; break;
+        default:
+            status = st.error ? DV_PS_ERROR
+                   : st.printing ? DV_PS_PRINTING
+                   : st.connected ? DV_PS_IDLE : DV_PS_NONE;
+            break;
+        }
         bed = st.bed_temp;
+        printer_light_known = st.chamber_light_known;
+        printer_light_on = st.chamber_light_on;
         break;
     }
     case DC_SRC_KLIPPER: {
@@ -106,7 +121,8 @@ static void update_rgb_from_state(void)
     default:
         break;
     }
-    dv_rgb_update((int)dv_policy_get_target(), status, bed);
+    dv_rgb_update((int)dv_policy_get_target(), status, bed,
+                  printer_light_known, printer_light_on);
 }
 
 // Button semantics from the stock firmware:

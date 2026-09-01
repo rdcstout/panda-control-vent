@@ -1,20 +1,19 @@
 #!/usr/bin/env bash
 #
-# dragonvent — helper for backing up, restoring, and installing DragonVent firmware
-#            on a Bigtreetech Panda Vent (or any classic ESP32).
+# dragonvent — compatibility helper for backing up, restoring, and installing
+#             Panda Control Vent firmware on a BIGTREETECH Panda Vent.
 #
 # Usage:
 #   dragonvent backup  [-p PORT] [-o FILE]                  # USB dump of stock (your way back)
 #   dragonvent restore [-p PORT] FILE                       # USB flash a stock backup
 #   dragonvent install [-H HOST] [TAG | FILE.bin]           # OTA over stock (no USB) — DEFAULT
-#   dragonvent install --usb [-p PORT] [TAG | FILE.bin]     # USB full-flash (recovery)
+#   dragonvent install --usb [-p PORT] FILE.bin             # USB recovery image
 #   dragonvent help
 #
 # Examples:
 #   dragonvent backup                                       # → stock-panda-vent-backup-<ts>.bin
-#   dragonvent install                                      # latest, OTA to PandaVent.local
-#   dragonvent install v0.5.0 -H 10.0.0.42                  # specific tag to an IP
-#   dragonvent install --usb v0.5.0                         # USB recovery flash
+#   dragonvent install v0.1.0-rc.10 -H 10.0.0.42            # OTA over stock
+#   dragonvent install --usb stock-panda-vent-backup.bin    # USB recovery flash
 #   dragonvent restore my-backup.bin
 #
 # install (OTA) needs `curl`; backup/restore/--usb need `esptool`
@@ -22,9 +21,7 @@
 
 set -euo pipefail
 
-# The GitHub repository is still named OpenVent during the rebrand. Keep the
-# legacy environment variable as a compatibility fallback for existing users.
-REPO="${DRAGONVENT_REPO:-${OPENVENT_REPO:-justinh-rahb/OpenVent}}"
+REPO="${PANDA_CONTROL_VENT_REPO:-rdcstout/panda-control-vent}"
 CHIP="esp32"
 BAUD="460800"
 FLASH_SIZE_BYTES=4194304   # 4 MB — matches the Panda Vent module
@@ -105,14 +102,10 @@ cmd_restore() {
 }
 
 # Download a release asset. Prefers `gh` if available for auth/rate-limit
-# reasons; falls back to curl for anonymous fetch. DragonVent release names
-# are preferred; OpenVent fallbacks keep the helper useful for releases
-# published before the rebrand.
-# download_release TAG OUT [VARIANT]  — VARIANT is "ota" (default; the app image
-# for OTA-over-stock or a DragonVent in-place update) or "factory" (full image
-# for USB recovery). factory keeps the older full/openvent name fallbacks.
+# reasons; falls back to curl for anonymous fetch.
+# download_release TAG OUT — downloads the application-only OTA image.
 download_release() {
-    local tag="$1" out="$2" variant="${3:-ota}"
+    local tag="$1" out="$2"
     # Release assets are versioned (no "latest" in the name), so resolve the real
     # tag first. gh can; without it, ask the user for a concrete tag.
     if [ "$tag" = "latest" ]; then
@@ -120,17 +113,10 @@ download_release() {
         tag="$(gh release view --repo "$REPO" --json tagName -q .tagName 2>/dev/null)" \
             || die "couldn't resolve the latest release"
     fi
-    local primary="dragonvent-${tag}-${variant}.bin"
+    local primary="Panda-Control-Vent-${tag#v}-OTA.bin"
     if command -v gh >/dev/null 2>&1; then
         gh release download "$tag" --repo "$REPO" \
             --pattern "$primary" --output "$out" --clobber 2>/dev/null && return 0
-        if [ "$variant" = "factory" ]; then
-            for pat in "dragonvent-${tag}-full.bin" "dragonvent-full.bin" \
-                       "openvent-${tag}-full.bin" "openvent-full.bin"; do
-                gh release download "$tag" --repo "$REPO" \
-                    --pattern "$pat" --output "$out" --clobber 2>/dev/null && return 0
-            done
-        fi
         die "download failed — no $primary in release $tag"
     else
         local url="https://github.com/$REPO/releases/download/$tag/$primary"
@@ -160,16 +146,15 @@ cmd_install() {
     done
 
     if [ -n "$usb" ]; then
-        # ---- USB recovery: full-flash the factory image over serial ----
+        # ---- USB recovery: full-flash an explicitly supplied recovery image ----
         require_esptool
         [ -n "$port" ] || port="$(autodetect_port || die "no serial port found — pass -p /dev/ttyUSB0")"
-        local image
-        if [ -n "$file" ]; then [ -f "$file" ] || die "not a file: $file"; image="$file"
-        else [ -n "$tag" ] || tag="latest"; image="$(mktemp -t dragonvent-factory.XXXXXX.bin)"
-             trap 'rm -f "${image:-}"' EXIT; download_release "$tag" "$image" factory; fi
+        [ -n "$file" ] || die "USB recovery requires an explicit stock backup or official full-flash BIN"
+        [ -f "$file" ] || die "not a file: $file"
+        local image="$file"
         echo "→ USB full-flash ($image) on $port"
         "${ESPTOOL[@]}" --chip "$CHIP" -p "$port" -b "$BAUD" write_flash 0x0 "$image"
-        echo "✓ install complete — rebooting into DragonVent."
+        echo "✓ recovery image written."
     else
         # ---- OTA over stock (default): upload the app to the device's /ota ----
         # Works against a Panda Vent running stock BTT firmware (and matches its
@@ -179,8 +164,8 @@ cmd_install() {
         [ -n "$host" ] || host="PandaVent.local"
         local image
         if [ -n "$file" ]; then [ -f "$file" ] || die "not a file: $file"; image="$file"
-        else [ -n "$tag" ] || tag="latest"; image="$(mktemp -t dragonvent-ota.XXXXXX.bin)"
-             trap 'rm -f "${image:-}"' EXIT; download_release "$tag" "$image" ota; fi
+        else [ -n "$tag" ] || tag="latest"; image="$(mktemp -t panda-control-vent-ota.XXXXXX.bin)"
+             trap 'rm -f "${image:-}"' EXIT; download_release "$tag" "$image"; fi
         echo "→ OTA over stock: uploading $(basename "$image") to http://$host/ota"
         local code
         code="$(curl -s -m 180 -o /dev/null -w '%{http_code}' -X POST \
@@ -188,9 +173,9 @@ cmd_install() {
             --data-binary @"$image" "http://$host/ota")" \
             || die "upload failed — is the device reachable at http://$host/ ?"
         [ "$code" = "200" ] || die "device returned HTTP $code (expected 200 — is $host on stock firmware?)"
-        echo "✓ uploaded — the device is rebooting into DragonVent."
+        echo "✓ uploaded — the device is rebooting into Panda Control Vent."
     fi
-    echo "  first boot comes up as the 'DragonVent_XXXX' hotspot (password 987654321);"
+    echo "  if setup is required, join the 'Panda_Control_Vent_XXXX' network;"
     echo "  join it to set WiFi + printer source in the captive portal."
 }
 

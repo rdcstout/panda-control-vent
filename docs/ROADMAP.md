@@ -1,4 +1,9 @@
-# DragonVent Roadmap
+# Upstream DragonVent Roadmap Archive
+
+This file is retained as historical upstream context from the DragonVent v0.5.9
+baseline. It is not the Panda Control Vent release plan. Current fork scope is
+defined by [Product Contract](PRODUCT_CONTRACT.md), and public launch work is
+tracked in [Website Plan](WEBSITE_PLAN.md).
 
 Custom firmware for the Bigtreetech Panda Vent hardware that replaces the
 stock Bambu Lab MQTT integration with Moonraker/Klipper support.

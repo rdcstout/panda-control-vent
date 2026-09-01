@@ -6,6 +6,7 @@
 
 #include "driver/spi_common.h"
 #include "esp_log.h"
+#include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
 #include "nvs.h"
@@ -27,6 +28,7 @@ static const char *TAG = "dv_rgb";
 #define MAX_STRIPS 2
 #define CFG_NVS_NS "app_nvs"
 #define CFG_NVS_KEY "lighting"
+#define IDLE_DIM_DELAY_US 3000000LL
 
 static const gpio_num_t STRIP_GPIO[MAX_STRIPS] = { DV_PIN_RGB_STRIP_0, DV_PIN_RGB_STRIP_1 };
 static int s_count;
@@ -50,13 +52,17 @@ static dv_lighting_t s_cfg = {
         .mode = DV_LIGHT_MODE_VENT,
         .idle = {255, 255, 255}, .prep = {248, 163, 35},
         .paused = {255, 255, 255}, .complete = {0, 255, 42},
+        .dim_idle = false,
+        .follow_printer_light = false,
     },
 };
 
 static int s_target = DV_MOTOR_TARGET_CLOSED;
 static int s_pstatus = DV_PS_NONE;
-static bool s_printing, s_error;
+static bool s_error;
+static bool s_printer_light_known, s_printer_light_on;
 static float s_bed = NAN;
+static int64_t s_idle_dim_after_us;
 
 static const uint8_t *printer_status_color(void)
 {
@@ -90,8 +96,6 @@ static dc_rgb_t base_color(void)
     uint8_t gradient[3];
     if (s_cfg.mode == DV_LIGHT_MODE_PRINTER) {
         base = printer_status_color();
-    } else if (s_cfg.use_printing && s_printing) {
-        base = s_cfg.printing;
     } else if (s_cfg.use_temp && !isnan(s_bed)) {
         int lo = s_cfg.temp_min_c, hi = s_cfg.temp_max_c;
         float factor = hi > lo ? (s_bed - lo) / (float)(hi - lo) : 0;
@@ -112,8 +116,6 @@ static dc_rgb_t profile_base_color(const dv_lighting_profile_t *cfg)
     uint8_t gradient[3];
     if (cfg->mode == DV_LIGHT_MODE_PRINTER) {
         base = profile_status_color(cfg);
-    } else if (cfg->use_printing && s_printing) {
-        base = cfg->printing;
     } else if (cfg->use_temp && !isnan(s_bed)) {
         int lo = cfg->temp_min_c, hi = cfg->temp_max_c;
         float factor = hi > lo ? (s_bed - lo) / (float)(hi - lo) : 0;
@@ -126,6 +128,16 @@ static dc_rgb_t profile_base_color(const dv_lighting_profile_t *cfg)
         base = s_target == DV_MOTOR_TARGET_OPEN ? cfg->open : cfg->closed;
     }
     return (dc_rgb_t){base[0], base[1], base[2]};
+}
+
+static uint8_t profile_brightness(const dv_lighting_profile_t *cfg)
+{
+    bool idle = s_pstatus == DV_PS_NONE || s_pstatus == DV_PS_IDLE;
+    bool delay_elapsed = s_idle_dim_after_us <= 0 ||
+                         esp_timer_get_time() >= s_idle_dim_after_us;
+    if (cfg->dim_idle && cfg->mode == DV_LIGHT_MODE_PRINTER && idle && delay_elapsed)
+        return (uint8_t)((cfg->brightness + 2u) / 5u);
+    return cfg->brightness;
 }
 
 /* Map DragonVent's effect ids (stable 0..7 for the SPA dropdown and saved NVS
@@ -162,8 +174,10 @@ static void apply_locked(void)
             {
                 .first_pixel = CHAMBER_FIRST_PIXEL,
                 .pixel_count = CHAMBER_PIXEL_COUNT,
-                .enabled = s_cfg.chamber.enabled,
-                .brightness = s_cfg.chamber.brightness,
+                .enabled = s_cfg.chamber.enabled &&
+                           (!s_cfg.chamber.follow_printer_light ||
+                            !s_printer_light_known || s_printer_light_on),
+                .brightness = profile_brightness(&s_cfg.chamber),
                 .color = profile_base_color(&s_cfg.chamber),
                 .effect = core_effect(s_cfg.chamber.effect),
                 .speed = s_cfg.chamber.speed,
@@ -209,6 +223,10 @@ esp_err_t dv_rgb_set_config(const dv_lighting_t *cfg)
     if (!cfg || !s_lock) return ESP_ERR_INVALID_ARG;
     xSemaphoreTake(s_lock, portMAX_DELAY);
     s_cfg = *cfg;
+    /* Legacy DragonVent printing overrides are intentionally retired. Vent
+     * mode follows vent state; printer mode owns the printing color. */
+    s_cfg.use_printing = false;
+    s_cfg.chamber.use_printing = false;
     if (s_cfg.effect > DV_FX_CYLON) s_cfg.effect = DV_FX_SOLID;
     if (s_cfg.chamber.effect > DV_FX_CYLON) s_cfg.chamber.effect = DV_FX_SOLID;
     for (int i = 0; i < s_count && i < MAX_STRIPS; ++i)
@@ -235,6 +253,8 @@ static void cfg_load(void)
         size_t capacity = sizeof(saved);
         if (nvs_get_blob(nvs, CFG_NVS_KEY, saved, &capacity) == ESP_OK) {
             memcpy(&s_cfg, saved, capacity);
+            s_cfg.use_printing = false;
+            s_cfg.chamber.use_printing = false;
             /* Migrate a legacy global reverse into both per-strip reverse flags. */
             if (s_cfg.reverse) { s_cfg.rev_strip[0] = 1; s_cfg.rev_strip[1] = 1; s_cfg.reverse = false; }
             ESP_LOGI(TAG, "loaded lighting config (%u B) from NVS", (unsigned)capacity);
@@ -277,15 +297,27 @@ esp_err_t dv_rgb_start(void)
     return ESP_OK;
 }
 
-void dv_rgb_update(int target, int status, float bed_temp_c)
+void dv_rgb_update(int target, int status, float bed_temp_c,
+                   bool printer_light_known, bool printer_light_on)
 {
     if (!s_lock) return;
     xSemaphoreTake(s_lock, portMAX_DELAY);
     s_target = target;
+    if (status != s_pstatus) {
+        // Make every real job-ending transition visible: show the Idle color at
+        // full brightness for three seconds before Dim while idle takes effect.
+        // Startup already in Idle (NONE -> IDLE) dims immediately, while pause
+        // and resume never enter Idle and therefore do not start this delay.
+        if (status == DV_PS_IDLE && s_pstatus != DV_PS_NONE && s_pstatus != DV_PS_IDLE)
+            s_idle_dim_after_us = esp_timer_get_time() + IDLE_DIM_DELAY_US;
+        else if (status != DV_PS_IDLE)
+            s_idle_dim_after_us = 0;
+    }
     s_pstatus = status;
-    s_printing = status == DV_PS_PRINTING;
     s_error = status == DV_PS_ERROR;
     s_bed = bed_temp_c;
+    s_printer_light_known = printer_light_known;
+    s_printer_light_on = printer_light_on;
     apply_locked();
     xSemaphoreGive(s_lock);
 }

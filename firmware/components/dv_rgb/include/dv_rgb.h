@@ -71,6 +71,8 @@ typedef struct {
     uint8_t prep[3];
     uint8_t paused[3];
     uint8_t complete[3];
+    bool    dim_idle;        // render idle/unknown printer status at 20% brightness
+    bool    follow_printer_light; // gate this zone with Bambu's factory chamber light
 } dv_lighting_profile_t;
 
 // NOTE: append new fields at the END — cfg_load tolerates a shorter stored blob
@@ -109,7 +111,8 @@ esp_err_t dv_rgb_start(void);
 // Feed current state to the lighting policy. target is a dv_motor_target_t;
 // status is a dv_printer_status_t (drives printer-mode color + the error flash);
 // bed_temp_c may be NAN when there's no printer/telemetry.
-void dv_rgb_update(int target, int status, float bed_temp_c);
+void dv_rgb_update(int target, int status, float bed_temp_c,
+                   bool printer_light_known, bool printer_light_on);
 
 // Get / set the lighting config. set persists to NVS and re-applies immediately.
 void      dv_rgb_get_config(dv_lighting_t *out);

@@ -2,16 +2,16 @@ dependencies:
   dc_evlog:
     git: https://github.com/justinh-rahb/dragon-core.git
     path: components/dc_evlog
-    version: v0.30.0
+    version: 8d5a61de8544a5b82cc3c6d9c7dc593ce06bb8bd
   dc_source:
     git: https://github.com/justinh-rahb/dragon-core.git
     path: components/dc_source
-    version: v0.30.0
+    version: 8d5a61de8544a5b82cc3c6d9c7dc593ce06bb8bd
   dc_moonraker:
     git: https://github.com/justinh-rahb/dragon-core.git
     path: components/dc_moonraker
-    version: v0.30.0
+    version: 8d5a61de8544a5b82cc3c6d9c7dc593ce06bb8bd
   dc_portal:
     git: https://github.com/justinh-rahb/dragon-core.git
     path: components/dc_portal
-    version: v0.30.0
+    version: 8d5a61de8544a5b82cc3c6d9c7dc593ce06bb8bd

@@ -1,18 +1,45 @@
-# Panda Control Vent 0.1.0-rc.2
+# Panda Control Vent 0.1.0-rc.10
 
-This is an OTA application image for an installed DragonVent 0.5.9 Panda Vent.
-Upload `Panda-Control-Vent-0.1.0-rc.2-ota.bin` from the embedded firmware upload
-control. Do not use the file as a full USB factory image.
+## Files
 
-The OTA process writes the inactive application partition and preserves the NVS
-settings partition. Existing Wi-Fi, Bambu printer binding, policy, calibration,
-and lighting settings should remain available after reboot. The setup AP is
-intentionally migrated to automatic fallback behavior.
+- `Panda-Control-Vent-0.1.0-rc.10-OTA.bin` — versioned release image.
+- `Panda-Control-Vent-OTA.bin` — identical image using the stable download
+  filename.
+- `SHA256SUMS` — checksums for both filenames.
 
-Keep the known-good DragonVent 0.5.9 OTA BIN and the stock BQ BIN available
-during release-candidate testing. If the web interface remains reachable, either
-can be uploaded through the firmware maintenance control to roll back.
+Both BIN files are byte-identical to the RC10 image that completed extended
+hardware testing on a Panda Vent connected to a Bambu Lab X1C.
 
-After upload, verify the displayed firmware version is `0.1.0-rc.2`, the Bambu
-connection reaches `Connected and receiving live data`, existing settings are
-unchanged, and the Vent Lights and Chamber Lights can be saved independently.
+## Upload
+
+From compatible stock firmware, use the existing stock firmware-update page.
+From DragonVent or Panda Control Vent, open **Setup → Maintenance → Firmware
+update**. Upload either BIN and wait for the interface to confirm that the
+controller has restarted.
+
+Expected displayed version after restart: `0.1.0-rc.10`.
+
+## Verified behavior
+
+- Bambu discovery, binding, reconnect, and telemetry.
+- Automatic and manual vent control across complete prints.
+- Preparing, printing, pause/resume, completed, stopped, and idle status
+  mapping on hardware.
+- Bambu error parsing and status mapping in host-side tests. A genuine printer
+  fault was not induced during hardware testing.
+- Completed color for 7.5 seconds, then idle.
+- Optional idle dimming to 20% after a three-second transition delay.
+- Independent pixels 0–10 for vent lighting and 11–15 for chamber lighting on
+  both GPIO outputs.
+- Factory chamber-light following.
+- OTA settings retention.
+
+## Known limitations
+
+- Factory reset retains some lighting, calibration, access-point, and local
+  control settings.
+- Klipper/Moonraker support is inherited from DragonVent and has not been
+  independently hardware-tested by Extrusion Therapy.
+
+Panda Control Vent is unofficial community firmware. Keep official Panda Vent
+stock firmware available before installing.

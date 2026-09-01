@@ -179,6 +179,20 @@ static const char *bambu_wire(dc_bambu_state_t state)
     return "unknown";
 }
 
+static const char *bambu_print_wire(dc_bambu_print_state_t state)
+{
+    switch (state) {
+    case DC_BAMBU_PRINT_IDLE:        return "idle";
+    case DC_BAMBU_PRINT_DOWNLOADING: return "downloading";
+    case DC_BAMBU_PRINT_PREPARING:   return "preparing";
+    case DC_BAMBU_PRINT_PRINTING:    return "printing";
+    case DC_BAMBU_PRINT_PAUSED:      return "paused";
+    case DC_BAMBU_PRINT_COMPLETE:    return "complete";
+    case DC_BAMBU_PRINT_ERROR:       return "error";
+    default:                         return "unknown";
+    }
+}
+
 static cJSON *make_state(void)
 {
     const esp_app_desc_t *app = esp_app_get_description();
@@ -217,6 +231,8 @@ static cJSON *make_state(void)
     float bed = NAN;
     float bed_target = NAN;
     const char *material = "";
+    bool chamber_light_known = false;
+    bool chamber_light_on = false;
     if (source == DC_SRC_KLIPPER) {
         dc_moonraker_status_t status = {0};
         dc_moonraker_get_status(&status);
@@ -231,10 +247,14 @@ static cJSON *make_state(void)
         dc_bambu_get_status(&status);
         connected = status.connected;
         connection_state = bambu_wire(status.state);
-        printer_state = status.printing ? "printing" : "idle";
+        printer_state = bambu_print_wire(status.print_state);
+        if (status.print_state == DC_BAMBU_PRINT_UNKNOWN)
+            printer_state = status.printing ? "printing" : status.connected ? "idle" : "unknown";
         bed = status.bed_temp;
         bed_target = status.bed_target;
         material = status.filament;
+        chamber_light_known = status.chamber_light_known;
+        chamber_light_on = status.chamber_light_on;
     }
     cJSON_AddBoolToObject(printer, "connected", connected);
     cJSON_AddStringToObject(printer, "connection", connection_state);
@@ -244,6 +264,14 @@ static cJSON *make_state(void)
     if (isnan(bed_target)) cJSON_AddNullToObject(printer, "bed_target_c");
     else cJSON_AddNumberToObject(printer, "bed_target_c", bed_target);
     cJSON_AddStringToObject(printer, "material", material);
+    if (source == DC_SRC_BAMBU) {
+        if (chamber_light_known)
+            cJSON_AddBoolToObject(printer, "chamber_light_on", chamber_light_on);
+        else
+            cJSON_AddNullToObject(printer, "chamber_light_on");
+    } else {
+        cJSON_AddNullToObject(printer, "chamber_light_on");
+    }
 
     float open_c = 45, close_c = 35;
     dv_policy_get_thresholds(&open_c, &close_c);
@@ -399,6 +427,8 @@ static void add_profile(cJSON *root, const dv_lighting_profile_t *p)
     add_rgb(root, "prep", p->prep);
     add_rgb(root, "paused", p->paused);
     add_rgb(root, "complete", p->complete);
+    cJSON_AddBoolToObject(root, "dim_idle", p->dim_idle);
+    cJSON_AddBoolToObject(root, "follow_printer_light", p->follow_printer_light);
 }
 
 static void primary_profile(const dv_lighting_t *c, dv_lighting_profile_t *p)
@@ -587,6 +617,8 @@ static void patch_profile(cJSON *body, dv_lighting_profile_t *p)
         int v = e->valueint; p->speed = (uint8_t)(v < 0 ? 0 : v > 255 ? 255 : v);
     }
     if ((e = cJSON_GetObjectItemCaseSensitive(body, "use_error")) && cJSON_IsBool(e)) p->use_error = cJSON_IsTrue(e);
+    if ((e = cJSON_GetObjectItemCaseSensitive(body, "dim_idle")) && cJSON_IsBool(e)) p->dim_idle = cJSON_IsTrue(e);
+    if ((e = cJSON_GetObjectItemCaseSensitive(body, "follow_printer_light")) && cJSON_IsBool(e)) p->follow_printer_light = cJSON_IsTrue(e);
     if ((e = cJSON_GetObjectItemCaseSensitive(body, "mode")) && cJSON_IsNumber(e)) p->mode = (uint8_t)(e->valueint & 1);
     patch_rgb(body, "open", p->open); patch_rgb(body, "closed", p->closed);
     patch_rgb(body, "printing", p->printing); patch_rgb(body, "error", p->error);

@@ -33,8 +33,8 @@ or wiring modification is required.
 - Pixel classification must occur before effect-direction reversal so reversing
   an animation cannot move chamber behavior onto vent addresses.
 
-## Remaining validation
+## Validation status
 
-The release test must explicitly confirm the main vent-light address range and
-verify that addresses above 15 have no visible emitters before the map is marked
-complete.
+The hardware walk confirmed pixels 0 through 10 as the main vent lighting and
+pixels 11 through 15 as the relocated front/chamber-light board on both outputs.
+The release mapping is complete for the tested retail hardware.

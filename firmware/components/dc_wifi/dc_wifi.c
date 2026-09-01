@@ -291,6 +291,20 @@ static void load_ap_config(dc_wifi_ap_config_t *out)
         out->ip = DEFAULT_AP_IP;
         out->mode = DC_WIFI_AP_MODE_DEFAULT;
     }
+
+    // Migrate only the inherited DragonVent-generated SSID. Preserve any AP name
+    // the owner explicitly customized, but ensure existing fork installations
+    // identify their recovery network as Panda Control Vent after OTA.
+    if (strncmp(out->ssid, "DragonVent_", strlen("DragonVent_")) == 0) {
+        build_default_ap_ssid(out->ssid, sizeof(out->ssid));
+        nvs_handle_t h;
+        if (nvs_open(NVS_NS, NVS_READWRITE, &h) == ESP_OK) {
+            nvs_set_str(h, KEY_AP_SSID, out->ssid);
+            nvs_commit(h);
+            nvs_close(h);
+        }
+        ESP_LOGI(TAG, "setup AP identity migrated to %s", out->ssid);
+    }
 }
 
 // Reassign the AP netif's IP + DHCP pool. Must happen while the AP is down.

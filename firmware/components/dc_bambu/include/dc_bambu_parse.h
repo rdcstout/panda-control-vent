@@ -19,6 +19,12 @@ typedef enum {
     DC_FILA_PRESENT,      // an active filament type was found -> use `out`
 } dc_fila_result_t;
 
+typedef enum {
+    DC_BAMBU_LIGHT_ABSENT = 0, // delta omitted lights_report -> retain prior state
+    DC_BAMBU_LIGHT_OFF,
+    DC_BAMBU_LIGHT_ON,         // includes Bambu's "flashing" mode
+} dc_bambu_light_result_t;
+
 /* Normalized form of the raw Bambu `gcode_state` token.  Keep it independent
  * of ESP-IDF/public API types so this parser stays host-testable. */
 typedef enum {
@@ -48,6 +54,26 @@ static inline dc_bambu_gcode_phase_t dc_bambu_gcode_phase(const char *state)
     return DC_BAMBU_GCODE_UNKNOWN;
 }
 
+// Bambu's print_error can be a JSON number or a quoted decimal/hex token.
+// A zero code is important: Bambu also emits FAILED when the user deliberately
+// stops a print, and Spooly's hardware-proven adapter treats that as idle rather
+// than a printer error.
+static inline bool dc_bambu_print_error_code(const char *json, uint32_t *out)
+{
+    const char *q = strstr(json, "\"print_error\"");
+    if (!q) return false;
+    q = strchr(q, ':');
+    if (!q) return false;
+    q++;
+    while (*q == ' ' || *q == '\t' || *q == '\n' || *q == '\r') q++;
+    if (*q == '"') q++;
+    char *end = NULL;
+    unsigned long value = strtoul(q, &end, 0);
+    if (end == q) return false;
+    if (out) *out = (uint32_t)value;
+    return true;
+}
+
 // Copy the string value of a JSON key ("key":"value") into out. `key` includes the
 // quotes. Returns true if a (possibly empty) string value was found.
 static inline bool dc_bambu_find_string(const char *s, const char *key, char *out, size_t outsz)
@@ -64,6 +90,38 @@ static inline bool dc_bambu_find_string(const char *s, const char *key, char *ou
     while (*q && *q != '"' && i + 1 < outsz) out[i++] = *q++;
     out[i] = '\0';
     return true;
+}
+
+// Read the factory chamber-light state from print.lights_report without building
+// a cJSON tree for the printer's 10-15 KB pushall payload. Bambu delta reports may
+// omit the array entirely; ABSENT is deliberately distinct from OFF.
+static inline dc_bambu_light_result_t dc_bambu_chamber_light(const char *json)
+{
+    const char *lights = strstr(json, "\"lights_report\"");
+    if (!lights) return DC_BAMBU_LIGHT_ABSENT;
+    const char *array_end = strchr(lights, ']');
+    const char *hit = strstr(lights, "\"chamber_light\"");
+    if (!array_end || !hit || hit > array_end) return DC_BAMBU_LIGHT_ABSENT;
+
+    const char *object_start = hit;
+    while (object_start > lights && *object_start != '{') object_start--;
+    const char *object_end = strchr(hit, '}');
+    if (*object_start != '{' || !object_end || object_end > array_end)
+        return DC_BAMBU_LIGHT_ABSENT;
+
+    char object[160];
+    size_t length = (size_t)(object_end - object_start + 1);
+    if (length >= sizeof object) return DC_BAMBU_LIGHT_ABSENT;
+    memcpy(object, object_start, length);
+    object[length] = '\0';
+
+    char mode[16];
+    if (!dc_bambu_find_string(object, "\"mode\"", mode, sizeof mode))
+        return DC_BAMBU_LIGHT_ABSENT;
+    if (strcasecmp(mode, "off") == 0) return DC_BAMBU_LIGHT_OFF;
+    if (strcasecmp(mode, "on") == 0 || strcasecmp(mode, "flashing") == 0)
+        return DC_BAMBU_LIGHT_ON;
+    return DC_BAMBU_LIGHT_ABSENT;
 }
 
 // Resolve the ACTIVE filament type from a Bambu report. Bambu lists loaded filaments

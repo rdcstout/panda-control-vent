@@ -28,9 +28,19 @@ require(
 )
 
 component_manifest = read("firmware/main/idf_component.yml")
+dragon_core_pin = "8d5a61de8544a5b82cc3c6d9c7dc593ce06bb8bd"
 for component in ("dc_evlog", "dc_source", "dc_moonraker", "dc_portal"):
     require(f"  {component}:" in component_manifest, f"missing {component} dependency")
-require(component_manifest.count("version: v0.30.0") == 4, "shared dependencies are not pinned to v0.30.0")
+require(
+    component_manifest.count(f"version: {dragon_core_pin}") == 4,
+    "shared dependencies are not pinned to the reviewed dragon-core v0.30.0 object",
+)
+
+lock = read("firmware/dependencies.lock")
+require(
+    lock.count(f"version: {dragon_core_pin}") == 4,
+    "dependency lock does not contain the reviewed dragon-core object",
+)
 
 expected_keys = {
     "firmware/components/dc_wifi/dc_wifi.c": (

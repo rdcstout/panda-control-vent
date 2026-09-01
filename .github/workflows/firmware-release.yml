@@ -21,10 +21,31 @@ jobs:
 
     steps:
       - name: Checkout repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.inputs.tag || github.ref }}
+
+      - name: Verify release tag and run checks
+        env:
+          RELEASE_TAG: ${{ github.event.inputs.tag || github.ref_name }}
+        run: |
+          set -euo pipefail
+          version="$(sed -n 's/^set(PROJECT_VER "\([^"]*\)")/\1/p' firmware/CMakeLists.txt)"
+          test -n "$version"
+          test "$RELEASE_TAG" = "v$version" || {
+            echo "release tag $RELEASE_TAG does not match firmware version $version" >&2
+            exit 1
+          }
+          node --test tests/*.test.mjs
+          cc -std=c11 -Wall -Wextra -Werror -fsanitize=address,undefined \
+            -Ifirmware/components/dc_bambu/include \
+            tests/dc_bambu_light_parse_test.c -o /tmp/pcv-bambu-test
+          /tmp/pcv-bambu-test
+          python3 scripts/check_upgrade_contract.py
 
       - name: Build firmware
-        uses: espressif/esp-idf-ci-action@v1
+        uses: espressif/esp-idf-ci-action@9d38657f3d789ca759b2b37aaf5ceffbc42c4f0d # v1
         with:
           esp_idf_version: v5.3.1
           target: esp32
@@ -37,12 +58,16 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p dist
-          # Bake the tag into the filename so a downloaded copy is obviously
-          # versioned once the browser strips its Content-Disposition header.
-          OTA="dragonvent-${RELEASE_TAG}-ota.bin"
-          cp firmware/build/dragonvent.bin "dist/${OTA}"
-          cd dist
-          sha256sum "${OTA}" > SHA256SUMS
+          version="${RELEASE_TAG#v}"
+          OTA="Panda-Control-Vent-${version}-OTA.bin"
+          STABLE="Panda-Control-Vent-OTA.bin"
+          test -f "release/${OTA}"
+          test -f "release/${STABLE}"
+          (cd release && sha256sum -c SHA256SUMS)
+          cmp "release/${OTA}" "release/${STABLE}"
+          cp "release/${OTA}" "dist/${OTA}"
+          cp "release/${STABLE}" "dist/${STABLE}"
+          cp release/SHA256SUMS dist/SHA256SUMS
           ls -lh
 
       - name: Publish GitHub release
@@ -60,22 +85,23 @@ jobs:
           ' CHANGELOG.md 2>/dev/null || true)"
 
           cat > release_notes.md <<NOTES
-          ## Install over stock — from a browser, no cable
+          ## Install from the existing web interface
 
-          As of v0.5.0, DragonVent runs on the **stock Panda Vent partition table**, so you install and update it **entirely from the web UI** — no serial cable, no disassembly, no helper scripts. The stock bootloader is preserved; only the app slot is written.
+          Panda Control Vent uses the compatible Panda Vent/DragonVent partition layout. The web updater writes only the inactive application slot; it does not erase the settings partition.
 
-          - **\`dragonvent-${RELEASE_TAG}-ota.bin\`** — the app image. One file for both the over-stock install **and** updating an existing DragonVent.
+          - **\`Panda-Control-Vent-${RELEASE_TAG#v}-OTA.bin\`** — versioned OTA image.
+          - **\`Panda-Control-Vent-OTA.bin\`** — stable filename for direct links and automation.
 
           ### Install over stock (recommended)
 
-          1. Download **\`dragonvent-${RELEASE_TAG}-ota.bin\`** from the Assets below.
+          1. Download **\`Panda-Control-Vent-${RELEASE_TAG#v}-OTA.bin\`** from the Assets below.
           2. Put the **stock** Panda Vent on your network and open its web UI (\`http://PandaVent.local/\` or its IP).
-          3. On the stock firmware-update page, upload the \`ota.bin\`. The stock firmware writes DragonVent to its inactive slot and reboots into it.
-          4. First boot comes up as the **\`DragonVent_XXXX\`** setup AP (WPA2, password \`987654321\`) — join it to enter WiFi + printer settings. It's then on mDNS as **\`DragonVent.local\`**.
+          3. On the stock firmware-update page, upload the OTA image and wait for the controller to restart.
+          4. Existing compatible network and printer settings are retained. If setup is required, join **\`Panda_Control_Vent_XXXX\`** and complete setup.
 
-          ### Updating an existing DragonVent
+          ### Updating DragonVent or Panda Control Vent
 
-          Open the DragonVent web UI, go to **Device setup → Maintenance**, and upload the \`ota.bin\`. It writes the inactive slot and reboots — nothing else to install.
+          Open the embedded interface, go to **Setup → Maintenance**, upload the OTA image, and wait for the interface to confirm that the controller has returned.
 
           ### ⚠ Upgrading from 0.4.x (one-time roll-back)
 
@@ -87,21 +113,17 @@ jobs:
 
           0.5.0 and later update **in place** (inactive-slot OTA) — no roll-back needed again.
 
-          ### ⚠ Back up stock first
+          ### Keep stock firmware available
 
-          BTT publishes no stock image, so dump the flash over USB **before** your first install — it's your only way back:
-
-          \`\`\`
-          python -m esptool --chip esp32 -p PORT -b 460800 read_flash 0x0 0x400000 stock-panda-vent-backup.bin
-          \`\`\`
-
-          \`PORT\` = \`/dev/ttyUSB0\` (Linux), \`/dev/tty.usbserial-*\` (macOS), \`COM3\` (Windows). If a DragonVent ever won't boot, write that same backup back with the \`write_flash\` command above, then re-install over stock.
+          Download and retain the official Panda Vent stock firmware before installing community firmware. Panda Control Vent is unofficial and is not endorsed by BIGTREETECH or Bambu Lab.
 
           ### Verify download
 
           \`\`\`
           shasum -a 256 -c SHA256SUMS
           \`\`\`
+
+          Panda Control Vent is free. If it helps in your shop, you can optionally [support future Extrusion Therapy tools](https://buy.stripe.com/fZu3cw2Mnfr0d7N3ws1kA00). Downloads and source remain available without payment.
           NOTES
 
           # Prepend this version's CHANGELOG section above the install guide, so the

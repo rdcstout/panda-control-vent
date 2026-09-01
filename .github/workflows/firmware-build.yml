@@ -6,11 +6,17 @@ on:
       - "**"
     paths:
       - "firmware/**"
+      - "tests/**"
+      - "scripts/check_upgrade_contract.py"
+      - "tools/idf-build.sh"
       - ".github/workflows/firmware-build.yml"
       - ".github/workflows/firmware-release.yml"
   pull_request:
     paths:
       - "firmware/**"
+      - "tests/**"
+      - "scripts/check_upgrade_contract.py"
+      - "tools/idf-build.sh"
       - ".github/workflows/firmware-build.yml"
       - ".github/workflows/firmware-release.yml"
   workflow_dispatch:
@@ -25,10 +31,22 @@ jobs:
 
     steps:
       - name: Checkout repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+
+      - name: Run firmware contract and host tests
+        run: |
+          set -euo pipefail
+          node --test tests/*.test.mjs
+          cc -std=c11 -Wall -Wextra -Werror -fsanitize=address,undefined \
+            -Ifirmware/components/dc_bambu/include \
+            tests/dc_bambu_light_parse_test.c -o /tmp/pcv-bambu-test
+          /tmp/pcv-bambu-test
+          python3 scripts/check_upgrade_contract.py
 
       - name: Build firmware
-        uses: espressif/esp-idf-ci-action@v1
+        uses: espressif/esp-idf-ci-action@9d38657f3d789ca759b2b37aaf5ceffbc42c4f0d # v1
         with:
           esp_idf_version: v5.3.1
           target: esp32
@@ -36,9 +54,9 @@ jobs:
           command: tools/idf-build.sh firmware esp32 build
 
       - name: Upload firmware build outputs
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: dragonvent-firmware-${{ github.sha }}
+          name: panda-control-vent-firmware-${{ github.sha }}
           if-no-files-found: error
           retention-days: 14
           path: |

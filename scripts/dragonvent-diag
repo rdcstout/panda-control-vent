@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-dragonvent-diag — capture the motor diagnostic log from a running DragonVent
+dragonvent-diag — capture the motor diagnostic log from Panda Control Vent
                 device and summarise what the hall sensors are reporting.
 
 Usage:
@@ -9,7 +9,7 @@ Usage:
 What to do while it's running:
 
     1. Connect the device over USB serial.
-    2. Load the portal (http://DragonVent.local/ or the AP IP).
+    2. Load the portal using the controller's current IP address or AP IP.
     3. Try to Open the vent — leave it for at least 5 seconds even if the
        motor doesn't stop, so we capture the retry loop.
     4. Try to Close the vent — should stop when it reaches the endpoint.
