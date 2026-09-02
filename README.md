@@ -10,9 +10,9 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/rdcstout/panda-control-vent/releases/download/v0.1.0-rc.10/Panda-Control-Vent-0.1.0-rc.10-OTA.bin"><strong>Download RC10 firmware</strong></a>
+  <a href="https://github.com/rdcstout/panda-control-vent/releases/download/v0.1.0/Panda-Control-Vent-0.1.0-OTA.bin"><strong>Download firmware</strong></a>
   ·
-  <a href="https://github.com/rdcstout/panda-control-vent/releases/tag/v0.1.0-rc.10">Release notes</a>
+  <a href="https://github.com/rdcstout/panda-control-vent/releases/tag/v0.1.0">Release notes</a>
   ·
   <a href="https://buy.stripe.com/fZu3cw2Mnfr0d7N3ws1kA00">Support future workshop tools</a>
 </p>
@@ -43,7 +43,7 @@
 
 ## Tested configuration
 
-Stable release `0.1.0-rc.10` has been used on retail Panda Vent hardware
+Stable release `0.1.0` contains the firmware used for extended testing on retail Panda Vent hardware
 connected to a Bambu Lab X1C. Real-device testing covers:
 
 - Bambu LAN discovery, binding, reconnect, and live printer telemetry;
@@ -60,7 +60,7 @@ but Extrusion Therapy has not independently hardware-tested that path.
 
 ## Download and install
 
-Download **[Panda-Control-Vent-0.1.0-rc.10-OTA.bin](https://github.com/rdcstout/panda-control-vent/releases/download/v0.1.0-rc.10/Panda-Control-Vent-0.1.0-rc.10-OTA.bin)**.
+Download **[Panda-Control-Vent-0.1.0-OTA.bin](https://github.com/rdcstout/panda-control-vent/releases/download/v0.1.0/Panda-Control-Vent-0.1.0-OTA.bin)**.
 
 The same application image is used when installing over compatible stock
 firmware, upgrading DragonVent 0.5.9, or updating Panda Control Vent.
@@ -103,9 +103,9 @@ GPIO or electrical modification is required; the physical modification is
 moving those boards into the print chamber. See the
 [LED hardware map](docs/LED_HARDWARE_MAP.md) for the tested wiring details.
 
-## Known RC10 limitations
+## Known limitations
 
-- Factory reset clears network and printer binding, but RC10 retains some
+- Factory reset clears network and printer binding, but this release retains some
   lighting, calibration, access-point, and local-control settings.
 - The embedded service is designed for a trusted local network. It is not an
   internet-facing service and should not be exposed through router port

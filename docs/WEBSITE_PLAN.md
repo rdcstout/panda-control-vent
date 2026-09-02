@@ -32,7 +32,7 @@ This is a planned route, not a currently published page.
    - State clearly that no GPIO reassignment or electrical rewiring is required.
 
 4. **Download and installation**
-   - Prominent RC10 OTA download.
+   - Prominent 0.1.0 OTA download.
    - SHA-256 checksum link.
    - Short stock/DragonVent/Panda Control Vent upload paths.
    - Reminder to retain official stock firmware before installing.
@@ -41,7 +41,7 @@ This is a planned route, not a currently published page.
    - `Bambu Lab X1C — hardware tested`.
    - `Klipper/Moonraker — inherited from DragonVent, not tested by Extrusion
      Therapy`.
-   - Link to the known RC10 limitations.
+   - Link to the known limitations.
 
 6. **Open-source lineage**
    - Credit Justin Hayes and DragonVent prominently.
@@ -58,7 +58,7 @@ This is a planned route, not a currently published page.
 
 - [x] Wide hero image.
 - [x] GitHub README copy and installation structure.
-- [x] Tested RC10 OTA image and checksum.
+- [x] Tested firmware behavior and final 0.1.0 OTA image checksum.
 - [ ] Real photographs of the installed chamber-light relocation.
 - [ ] One clean screenshot each of Overview, Automation, Lighting, and Setup.
 - [ ] Final public GitHub repository and release URLs.

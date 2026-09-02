@@ -7,7 +7,7 @@ below into the GitHub Release notes.
 
 ## [Unreleased]
 
-## [0.1.0-rc.10] - 2026-09-01
+## [0.1.0] - 2026-09-01
 
 ### Added
 - Optional **Dim while idle** control for the independent chamber-light zone;

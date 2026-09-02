@@ -1,14 +1,14 @@
-# Panda Control Vent 0.1.0-rc.10
+# Panda Control Vent 0.1.0
 
 ## Files
 
-- `Panda-Control-Vent-0.1.0-rc.10-OTA.bin` — versioned release image.
+- `Panda-Control-Vent-0.1.0-OTA.bin` — versioned release image.
 - `Panda-Control-Vent-OTA.bin` — identical image using the stable download
   filename.
 - `SHA256SUMS` — checksums for both filenames.
 
-Both BIN files are byte-identical to the RC10 image that completed extended
-hardware testing on a Panda Vent connected to a Bambu Lab X1C.
+Both BIN files are byte-identical final builds of the firmware that completed
+extended hardware testing on a Panda Vent connected to a Bambu Lab X1C.
 
 ## Upload
 
@@ -17,7 +17,7 @@ From DragonVent or Panda Control Vent, open **Setup → Maintenance → Firmware
 update**. Upload either BIN and wait for the interface to confirm that the
 controller has restarted.
 
-Expected displayed version after restart: `0.1.0-rc.10`.
+Expected displayed version after restart: `0.1.0`.
 
 ## Verified behavior
 

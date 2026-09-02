@@ -135,13 +135,10 @@ jobs:
             mv release_notes.md.new release_notes.md
           fi
 
-          # RC10 is the hardware-tested Panda Control Vent launch release even
-          # though its retained firmware version contains an rc suffix. Future
-          # hyphenated versions remain prereleases unless explicitly promoted.
+          # Hyphenated versions are prereleases; normal semantic versions are
+          # published as the latest stable release.
           PRERELEASE_FLAGS=""
           case "$RELEASE_TAG" in
-            v0.1.0-rc.10) PRERELEASE_FLAGS="--latest"
-                 echo "Publishing $RELEASE_TAG as the stable launch release" ;;
             *-*) PRERELEASE_FLAGS="--prerelease"
                  echo "Publishing $RELEASE_TAG as a pre-release" ;;
             *)   PRERELEASE_FLAGS="--latest"
