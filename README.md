@@ -12,6 +12,8 @@
 <p align="center">
   <a href="https://github.com/rdcstout/panda-control-vent/releases/download/v0.1.0/Panda-Control-Vent-0.1.0-OTA.bin"><strong>Download firmware</strong></a>
   ·
+  <a href="https://makerworld.com/en/models/3250883-panda-control-vent#profileId-3684253">Printable model files</a>
+  ·
   <a href="https://github.com/rdcstout/panda-control-vent/releases/tag/v0.1.0">Release notes</a>
   ·
   <a href="https://buy.stripe.com/fZu3cw2Mnfr0d7N3ws1kA00">Support future workshop tools</a>
@@ -89,6 +91,11 @@ shasum -a 256 -c SHA256SUMS
 ```
 
 ## Chamber-light modification
+
+Download the **[Panda Control Vent printable model files on MakerWorld](https://makerworld.com/en/models/3250883-panda-control-vent#profileId-3684253)**.
+The model includes a redesigned Panda Vent riser front and relocation brackets
+for moving the original front LED boards into the printer as chamber lighting.
+The relocation brackets attach with double-sided tape.
 
 Each vent output contains 16 addressable pixels. Hardware probing established
 the same zero-based map on both sides:
