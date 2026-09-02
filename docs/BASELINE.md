@@ -1,7 +1,7 @@
 # Development Baseline
 
 - Product: Panda Control Vent
-- Current tested release candidate: 0.1.0-rc.10
+- Current tested stable release: 0.1.0-rc.10
 - Upstream: DragonVent v0.5.9
 - Upstream commit: `51d1c1ea09e0f752b030de56f7b7a9b42fda6518`
 - Dragon Core: v0.30.0, pinned to object

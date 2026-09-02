@@ -43,7 +43,7 @@
 
 ## Tested configuration
 
-Release candidate `0.1.0-rc.10` has been used on retail Panda Vent hardware
+Stable release `0.1.0-rc.10` has been used on retail Panda Vent hardware
 connected to a Bambu Lab X1C. Real-device testing covers:
 
 - Bambu LAN discovery, binding, reconnect, and live printer telemetry;
