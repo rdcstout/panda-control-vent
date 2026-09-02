@@ -25,7 +25,9 @@ test('Bambu completion is a one-shot state that expires to idle', () => {
   assert.match(bambu, /COMPLETION_HOLD_US\s+7500000LL/);
   assert.match(bambu, /s_has_observed_active_job\s*=\s*true/);
   assert.match(bambu, /s_completion_until_us\s*=\s*now_us\s*\+\s*COMPLETION_HOLD_US/);
-  assert.match(bambu, /out->print_state\s*=\s*DC_BAMBU_PRINT_IDLE/);
+  assert.match(bambu, /static void expire_completion_locked/);
+  assert.match(bambu, /s_status\.print_state\s*=\s*DC_BAMBU_PRINT_IDLE/);
+  assert.equal((bambu.match(/now_us\s*<\s*s_completion_until_us/g) ?? []).length, 1);
 });
 
 test('idle dimming waits after every real job-ending transition', () => {
