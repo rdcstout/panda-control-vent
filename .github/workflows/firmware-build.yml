@@ -43,7 +43,6 @@ jobs:
             -Ifirmware/components/dc_bambu/include \
             tests/dc_bambu_light_parse_test.c -o /tmp/pcv-bambu-test
           /tmp/pcv-bambu-test
-          python3 scripts/check_upgrade_contract.py
 
       - name: Build firmware
         uses: espressif/esp-idf-ci-action@9d38657f3d789ca759b2b37aaf5ceffbc42c4f0d # v1
@@ -52,6 +51,9 @@ jobs:
           target: esp32
           path: .
           command: tools/idf-build.sh firmware esp32 build
+
+      - name: Verify in-place upgrade contract
+        run: python3 scripts/check_upgrade_contract.py
 
       - name: Upload firmware build outputs
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
