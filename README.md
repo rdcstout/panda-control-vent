@@ -16,7 +16,7 @@
   ·
   <a href="https://github.com/rdcstout/panda-control-vent/releases/latest">Release notes</a>
   ·
-  <a href="https://buy.stripe.com/fZu3cw2Mnfr0d7N3ws1kA00">Support future workshop tools</a>
+  <a href="https://buy.stripe.com/fZu3cw2Mnfr0d7N3ws1kA00">Support Future Tools</a>
 </p>
 
 > [!IMPORTANT]
@@ -45,17 +45,24 @@
 
 ## Tested configuration
 
-Stable release `0.1.0` contains the firmware used for extended testing on retail Panda Vent hardware
-connected to a Bambu Lab X1C. Real-device testing covers:
+The `0.1.0` baseline received extended testing on retail Panda Vent hardware
+connected to a Bambu Lab X1C. Real-device testing of that baseline covers:
 
 - Bambu LAN discovery, binding, reconnect, and live printer telemetry;
 - automatic and manual vent operation through complete print cycles;
 - preparing, printing, manually paused, completed, stopped, and idle colors;
 - a 7.5-second completion indication followed by idle;
-- optional idle dimming to 20% after a three-second transition delay;
+- optional idle dimming to 20% of the selected brightness after a three-second
+  transition delay;
 - factory chamber-light following;
 - independent right and left vent/chamber LED zones; and
 - OTA updates that retain existing settings.
+
+Release `0.1.1` adds Bambu state-handling and reconnect corrections, verified by
+automated tests and a successful firmware build. That verification is separate
+from the baseline's extended hardware testing. See the
+[release notes](https://github.com/rdcstout/panda-control-vent/releases/latest)
+for changes in the current download.
 
 Klipper/Moonraker support is inherited from DragonVent. It remains available,
 but Extrusion Therapy has not independently hardware-tested that path.
@@ -71,9 +78,35 @@ Every firmware release publishes two byte-identical OTA assets: a numbered
 The same application image is used when installing over compatible stock
 firmware, upgrading DragonVent 0.5.9, or updating Panda Control Vent.
 
+You need Panda Vent hardware, a browser, and a local network shared by the
+controller, printer, and phone or computer. For a new Bambu connection, have
+the printer's IP address, serial number, and LAN access code available. Already
+configured compatible installations should not need to bind the printer again.
+
+### Verify the download before uploading
+
+Download `SHA256SUMS` and your chosen BIN from the **same
+[release](https://github.com/rdcstout/panda-control-vent/releases/latest)**.
+For the stable filename, run this command in the download folder on macOS or Linux:
+
+```sh
+shasum -a 256 Panda-Control-Vent-OTA.bin
+```
+
+On Windows PowerShell:
+
+```powershell
+Get-FileHash .\Panda-Control-Vent-OTA.bin -Algorithm SHA256
+```
+
+Compare the resulting hash with the `Panda-Control-Vent-OTA.bin` entry in
+`SHA256SUMS` (letter case does not matter). They must match before uploading.
+If you chose the numbered BIN, use that filename and its matching entry instead.
+You do not need to download both BINs.
+
 ### From compatible stock firmware
 
-1. Download and retain the official Panda Vent stock firmware for recovery.
+1. Download and retain the [official Panda Vent stock firmware](https://github.com/bigtreetech/Panda-Vent/tree/master/Firmware) for recovery.
 2. Open the Panda Vent's existing web interface using its IP address.
 3. Open the stock firmware-update page and upload the Panda Control Vent OTA
    image.
@@ -88,11 +121,48 @@ firmware, upgrading DragonVent 0.5.9, or updating Panda Control Vent.
 Open **Setup → Maintenance → Firmware update**, select the OTA image, and wait
 for the interface to confirm that the controller has returned.
 
-Verify a downloaded release with the accompanying `SHA256SUMS` file:
+### Recovery and compatibility
 
-```sh
-shasum -a 256 -c SHA256SUMS
-```
+Keep the stock image before making changes. BIGTREETECH's
+[stock firmware update instructions](https://github.com/bigtreetech/Panda-Vent/blob/master/Documentation/Panda_Vent_User_Manual.md#8-ota-firmware-upgrade)
+describe its factory updater. If an update has finished but the interface is
+unreachable, check the controller's current IP in your router and look for its
+setup network before resetting anything.
+
+An OTA BIN is not a full-flash USB backup; do not write it to flash address zero.
+Older DragonVent 0.4.x installations use a different partition layout and cannot
+use this in-place upgrade path. If the device no longer boots or the layout is
+uncertain, [request recovery help](https://github.com/rdcstout/panda-control-vent/issues)
+before erasing flash. See the [upgrade compatibility notes](docs/UPGRADE_COMPATIBILITY.md)
+for settings preservation details.
+
+## Everyday use
+
+- **Overview:** check printer connection and vent position, manually open or
+  close the vents, or select **Auto** to follow the automation policy.
+- **Automation:** choose the commanded bed-temperature threshold. The simple
+  policy uses a nonzero bed target to open below that threshold or keep the
+  vents closed at or above it;
+  **Advanced** exposes the inherited material rules. Saving settings does not
+  switch the operating mode; select Auto in Overview.
+- **Lighting:** configure Vent Lights and Chamber Lights separately, including
+  colors, brightness, idle dimming, and optional factory chamber-light following.
+
+### Why are the vents still open after the print finishes?
+
+This is intentional. In Auto, once the job has ended and the bed target is off,
+Panda Control Vent uses the **actual bed temperature** to manage cooldown. Open
+vents close when that temperature falls below the configured closing threshold
+(35 °C by default). Cooling can take a long time after a print; there is no fixed
+post-print closing timer. Overview shows the cooldown threshold so you can see
+what the controller is waiting for.
+
+The lighting sequence is separate: the Bambu completion indication lasts 7.5
+seconds, then returns to the selected idle color. With **Dim while idle** enabled
+in Printer status mode, the chamber lights wait another three seconds before
+dimming to 20% of their selected brightness. Returning to idle does not mean the
+bed is cool enough to close the vents. Manual mode does not follow this automatic
+cooldown policy.
 
 ## Chamber-light modification
 
@@ -123,22 +193,13 @@ moving those boards into the print chamber. See the
   forwarding.
 - Moonraker support is inherited and unverified by Extrusion Therapy.
 
-## Project lineage and upstream contributions
+## License and attribution
 
 Panda Control Vent starts from
 [DragonVent](https://github.com/justinh-rahb/DragonVent) v0.5.9 at commit
 `51d1c1ea09e0f752b030de56f7b7a9b42fda6518`. The original MIT copyright and
 license are preserved in [LICENSE](LICENSE), with additional attribution in
 [NOTICE](NOTICE).
-
-Our upstream contributions are intentionally narrow: tested corrections that
-make DragonVent's existing firmware and interface work reliably with Bambu
-printer states. Panda Control Vent's replacement interface, branding,
-automation experience, chamber-light hardware map, and every chamber-light
-setting remain part of this fork.
-
-See the [upstream contribution plan](docs/UPSTREAM_CONTRIBUTION_PLAN.md) for the
-exact inclusion and exclusion boundary.
 
 ## Development and release checks
 
@@ -152,14 +213,26 @@ python3 scripts/check_upgrade_contract.py
 tools/idf-build.sh firmware esp32 build
 ```
 
-The firmware targets the classic ESP32 using ESP-IDF 5.3.1. The release
-workflow rebuilds and tests the source, then publishes the checksum-verified,
-hardware-tested OTA image under both versioned and stable filenames.
+The firmware targets the classic ESP32 using ESP-IDF 5.3.1. Build CI compiles
+the source separately. The release workflow runs automated tests, verifies the
+tag/version and checksums of the prebuilt BINs, confirms both filenames contain
+identical bytes, and publishes them. It does not rebuild the firmware or perform
+hardware testing. See [Contributing](CONTRIBUTING.md) for contribution guidance.
 
 ## Support
 
+[Report a bug](https://github.com/rdcstout/panda-control-vent/issues) with the
+firmware version, printer model, and steps to reproduce it. Follow the
+[reporting checklist](CONTRIBUTING.md) and remove credentials and identifying
+information from screenshots or logs.
+
+For vulnerabilities, follow the [security reporting guidance](SECURITY.md).
+Do not post exploit details or secrets publicly. If private reporting is not
+available, open an issue requesting a private contact without disclosing the
+vulnerability details.
+
 Panda Control Vent is free and open source. If it helps in your shop, you can
-optionally **[support future Extrusion Therapy tools](https://buy.stripe.com/fZu3cw2Mnfr0d7N3ws1kA00)**.
+optionally **[Support Future Tools](https://buy.stripe.com/fZu3cw2Mnfr0d7N3ws1kA00)**.
 The firmware and source remain available without payment.
 
 This project is provided as-is without a support contract or warranty.
