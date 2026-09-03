@@ -64,6 +64,10 @@ but Extrusion Therapy has not independently hardware-tested that path.
 
 Download the current **[Panda-Control-Vent-OTA.bin](https://github.com/rdcstout/panda-control-vent/releases/latest/download/Panda-Control-Vent-OTA.bin)**. This permanent URL always resolves to the stable OTA image from the latest release.
 
+Every firmware release publishes two byte-identical OTA assets: a numbered
+`Panda-Control-Vent-<version>-OTA.bin` for archival use and the persistent
+`Panda-Control-Vent-OTA.bin` filename used by the website and README.
+
 The same application image is used when installing over compatible stock
 firmware, upgrading DragonVent 0.5.9, or updating Panda Control Vent.
 
