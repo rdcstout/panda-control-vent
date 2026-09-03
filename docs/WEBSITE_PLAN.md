@@ -32,7 +32,7 @@ This is a planned route, not a currently published page.
    - State clearly that no GPIO reassignment or electrical rewiring is required.
 
 4. **Download and installation**
-   - Prominent 0.1.0 OTA download.
+   - Prominent current OTA download using the permanent GitHub latest-release URL.
    - SHA-256 checksum link.
    - Short stock/DragonVent/Panda Control Vent upload paths.
    - Reminder to retain official stock firmware before installing.
@@ -66,7 +66,7 @@ This is a planned route, not a currently published page.
 
 ## Launch verification
 
-- Download button retrieves the exact release asset.
+- Download button uses `https://github.com/rdcstout/panda-control-vent/releases/latest/download/Panda-Control-Vent-OTA.bin` so it retrieves the current stable release without requiring a website edit for every firmware version.
 - Checksum matches the downloaded BIN.
 - Mobile hero and install steps remain readable.
 - GitHub, release, donation, DragonVent, and Extrusion Therapy links resolve.

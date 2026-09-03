@@ -10,11 +10,11 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/rdcstout/panda-control-vent/releases/download/v0.1.0/Panda-Control-Vent-0.1.0-OTA.bin"><strong>Download firmware</strong></a>
+  <a href="https://github.com/rdcstout/panda-control-vent/releases/latest/download/Panda-Control-Vent-OTA.bin"><strong>Download firmware</strong></a>
   ·
   <a href="https://makerworld.com/en/models/3250883-panda-control-vent#profileId-3684253">Printable model files</a>
   ·
-  <a href="https://github.com/rdcstout/panda-control-vent/releases/tag/v0.1.0">Release notes</a>
+  <a href="https://github.com/rdcstout/panda-control-vent/releases/latest">Release notes</a>
   ·
   <a href="https://buy.stripe.com/fZu3cw2Mnfr0d7N3ws1kA00">Support future workshop tools</a>
 </p>
@@ -62,7 +62,7 @@ but Extrusion Therapy has not independently hardware-tested that path.
 
 ## Download and install
 
-Download **[Panda-Control-Vent-0.1.0-OTA.bin](https://github.com/rdcstout/panda-control-vent/releases/download/v0.1.0/Panda-Control-Vent-0.1.0-OTA.bin)**.
+Download the current **[Panda-Control-Vent-OTA.bin](https://github.com/rdcstout/panda-control-vent/releases/latest/download/Panda-Control-Vent-OTA.bin)**. This permanent URL always resolves to the stable OTA image from the latest release.
 
 The same application image is used when installing over compatible stock
 firmware, upgrading DragonVent 0.5.9, or updating Panda Control Vent.
