@@ -68,6 +68,6 @@ prefix so existing settings remain readable. Run
 
 ## Hardware status
 
-Version 0.1.0 has been hardware-tested with a Bambu Lab X1C. Klipper/Moonraker support
-is inherited from DragonVent and has not been independently tested by
-Extrusion Therapy.
+Version 0.1.1 builds on the hardware-tested 0.1.0 release and adds host-tested
+Bambu state and reconnect hardening. Klipper/Moonraker support is inherited
+from DragonVent and has not been independently tested by Extrusion Therapy.

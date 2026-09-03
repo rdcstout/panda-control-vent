@@ -7,6 +7,21 @@ below into the GitHub Release notes.
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-09-02
+
+### Fixed
+- Harden Bambu delta-state handling so a stale printer error cannot mask a new
+  active print when the next report omits `print_error`.
+- Parse `print_error` only from the live `print` object and reject malformed or
+  out-of-range values instead of accepting unrelated or truncated data.
+- Use one authoritative completion-expiry rule for both incoming reports and
+  status polling while preserving the 7.5-second Completed indication.
+- Reset all Bambu phase, error, and completion tracking state when the client is
+  reset.
+- Serialize Bambu MQTT lifecycle and configuration changes so live reconnects
+  cannot race with start, stop, or configuration clearing.
+- Preserve the active connection when clearing stored configuration fails.
+
 ## [0.1.0] - 2026-09-01
 
 ### Added
