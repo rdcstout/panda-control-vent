@@ -116,9 +116,9 @@ You do not need to download both BINs.
    should remain available. Otherwise, join the generated
    `Panda_Control_Vent_XXXX` setup network and complete setup.
 
-### From DragonVent or Panda Control Vent
+### Updating Panda Control Vent
 
-Open **Setup → Maintenance → Firmware update**, select the OTA image, and wait
+In Panda Control Vent, open **Setup → Maintenance → Firmware update**, select the OTA image, and wait
 for the interface to confirm that the controller has returned.
 
 ### Recovery and compatibility
