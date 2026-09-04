@@ -76,49 +76,21 @@ jobs:
           ' CHANGELOG.md 2>/dev/null || true)"
 
           cat > release_notes.md <<NOTES
-          ## Install from the existing web interface
-
-          Panda Control Vent uses the compatible Panda Vent/DragonVent partition layout. The web updater writes only the inactive application slot; it does not erase the settings partition.
+          ## Downloads
 
           - **\`Panda-Control-Vent-${RELEASE_TAG#v}-OTA.bin\`** — versioned OTA image.
           - **\`Panda-Control-Vent-OTA.bin\`** — stable filename for direct links and automation.
 
-          ### Install over stock (recommended)
+          Both BIN files contain the same firmware. SHA-256 checksums are provided in **\`SHA256SUMS\`**.
 
-          1. Download **\`Panda-Control-Vent-${RELEASE_TAG#v}-OTA.bin\`** from the Assets below.
-          2. Put the **stock** Panda Vent on your network and open its web UI (\`http://PandaVent.local/\` or its IP).
-          3. On the stock firmware-update page, upload the OTA image and wait for the controller to restart.
-          4. Existing compatible network and printer settings are retained. If setup is required, join **\`Panda_Control_Vent_XXXX\`** and complete setup.
+          See the [installation guide](https://github.com/rdcstout/panda-control-vent/blob/${RELEASE_TAG}/docs/INSTALLATION.md) for supported hardware, updating, settings preservation, and checksum verification. Help is in [troubleshooting](https://github.com/rdcstout/panda-control-vent/blob/${RELEASE_TAG}/docs/TROUBLESHOOTING.md).
 
-          ### Updating DragonVent or Panda Control Vent
-
-          Open the embedded interface, go to **Setup → Maintenance**, upload the OTA image, and wait for the interface to confirm that the controller has returned.
-
-          ### ⚠ Upgrading from 0.4.x (one-time roll-back)
-
-          0.4.x used a **different partition table**, so you can't OTA straight from 0.4.x to 0.5.x. Roll back to your stock backup over USB first, then install over stock from the web UI as above:
-
-          \`\`\`
-          python -m esptool --chip esp32 -p PORT -b 460800 write_flash 0x0 stock-panda-vent-backup.bin
-          \`\`\`
-
-          0.5.0 and later update **in place** (inactive-slot OTA) — no roll-back needed again.
-
-          ### Keep stock firmware available
-
-          Download and retain the official Panda Vent stock firmware before installing community firmware. Panda Control Vent is unofficial and is not endorsed by BIGTREETECH or Bambu Lab.
-
-          ### Verify download
-
-          \`\`\`
-          shasum -a 256 -c SHA256SUMS
-          \`\`\`
+          Panda Control Vent is unofficial and is not endorsed by BIGTREETECH or Bambu Lab.
 
           Panda Control Vent is free. If it helps in your shop, you can optionally [support future Extrusion Therapy tools](https://buy.stripe.com/fZu3cw2Mnfr0d7N3ws1kA00). Downloads and source remain available without payment.
           NOTES
 
-          # Prepend this version's CHANGELOG section above the install guide, so the
-          # release opens with what changed (matching the DragonBreath releases).
+          # Open the release with this version's changes.
           if [ -n "$(printf '%s' "$changelog" | tr -d '[:space:]')" ]; then
             { printf "## What's new in %s\n%s\n\n" "$RELEASE_TAG" "$changelog"; cat release_notes.md; } > release_notes.md.new
             mv release_notes.md.new release_notes.md

@@ -20,6 +20,11 @@ cooldown policy.
 
 ## Recovery and compatibility
 
+If the Bambu network connection is lost while the vent remains powered, the
+interface reports disconnected/unknown and printer-status lighting uses its
+idle appearance. The vent holds its current position until reliable printer
+data returns. This does not indicate that the printer itself is idle.
+
 Keep the stock image before making changes. BIGTREETECH's
 [stock firmware update instructions](https://github.com/bigtreetech/Panda-Vent/blob/master/Documentation/Panda_Vent_User_Manual.md#8-ota-firmware-upgrade)
 describe its factory updater. If an update has finished but the interface is

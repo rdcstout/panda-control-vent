@@ -8,6 +8,7 @@
 
 #include "cJSON.h"
 #include "dc_bambu.h"
+#include "dv_bambu_state.h"
 #include "dc_evlog.h"
 #include "dc_moonraker.h"
 #include "dc_portal.h"
@@ -179,19 +180,6 @@ static const char *bambu_wire(dc_bambu_state_t state)
     return "unknown";
 }
 
-static const char *bambu_print_wire(dc_bambu_print_state_t state)
-{
-    switch (state) {
-    case DC_BAMBU_PRINT_IDLE:        return "idle";
-    case DC_BAMBU_PRINT_DOWNLOADING: return "downloading";
-    case DC_BAMBU_PRINT_PREPARING:   return "preparing";
-    case DC_BAMBU_PRINT_PRINTING:    return "printing";
-    case DC_BAMBU_PRINT_PAUSED:      return "paused";
-    case DC_BAMBU_PRINT_COMPLETE:    return "complete";
-    case DC_BAMBU_PRINT_ERROR:       return "error";
-    default:                         return "unknown";
-    }
-}
 
 static cJSON *make_state(void)
 {
@@ -247,9 +235,7 @@ static cJSON *make_state(void)
         dc_bambu_get_status(&status);
         connected = status.connected;
         connection_state = bambu_wire(status.state);
-        printer_state = bambu_print_wire(status.print_state);
-        if (status.print_state == DC_BAMBU_PRINT_UNKNOWN)
-            printer_state = status.printing ? "printing" : status.connected ? "idle" : "unknown";
+        printer_state = dv_bambu_live_state_str(&status);
         bed = status.bed_temp;
         bed_target = status.bed_target;
         material = status.filament;

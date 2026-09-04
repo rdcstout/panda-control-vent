@@ -2,6 +2,7 @@
 #include "dv_button.h"
 #include "dc_evlog.h"
 #include "dc_bambu.h"
+#include "dv_bambu_state.h"
 #include "dc_moonraker.h"
 #include "dc_source.h"
 #include "dv_motor.h"
@@ -84,7 +85,7 @@ static void update_rgb_from_state(void)
     case DC_SRC_BAMBU: {
         dc_bambu_status_t st = {0};
         dc_bambu_get_status(&st);
-        switch (st.print_state) {
+        switch (dv_bambu_live_phase(&st)) {
         case DC_BAMBU_PRINT_IDLE:        status = DV_PS_IDLE; break;
         case DC_BAMBU_PRINT_DOWNLOADING:
         case DC_BAMBU_PRINT_PREPARING:   status = DV_PS_PREPARING; break;
@@ -93,9 +94,7 @@ static void update_rgb_from_state(void)
         case DC_BAMBU_PRINT_COMPLETE:    status = DV_PS_COMPLETE; break;
         case DC_BAMBU_PRINT_ERROR:       status = DV_PS_ERROR; break;
         default:
-            status = st.error ? DV_PS_ERROR
-                   : st.printing ? DV_PS_PRINTING
-                   : st.connected ? DV_PS_IDLE : DV_PS_NONE;
+            status = DV_PS_NONE;
             break;
         }
         bed = st.bed_temp;

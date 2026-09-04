@@ -7,6 +7,24 @@ below into the GitHub Release notes.
 
 ## [Unreleased]
 
+## [0.1.2] - 2026-09-04
+
+### Fixed
+- Stop presenting cached Bambu print phases as live after a connection loss.
+  The API reports unknown while disconnected; printer-status lighting uses
+  the configured idle appearance until fresh printer reports resume.
+- Use the same connection-aware state mapping for lighting, the API, and
+  Bambu diagnostic logs.
+
+### Validation
+- Reproduced stale paused/error states on 0.1.1 using a local simulated Bambu
+  broker with a real Panda Vent ESP32; repeated the sequence on 0.1.2 and
+  verified unknown states on disconnect and correct fresh states on reconnect.
+- Verified OTA settings retention and restored the original X1C binding,
+  Auto mode, lighting, and automation settings after testing.
+- Added compiled host regressions for all phases, actual MQTT event handling,
+  idle color selection, and the unchanged 7.5-second completion timer.
+
 ## [0.1.1] - 2026-09-02
 
 ### Fixed

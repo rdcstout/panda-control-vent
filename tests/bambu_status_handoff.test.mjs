@@ -6,6 +6,7 @@ const main = await readFile(new URL('../firmware/main/app_main.c', import.meta.u
 const portal = await readFile(new URL('../firmware/components/dv_portal/dv_portal.c', import.meta.url), 'utf8');
 const bambu = await readFile(new URL('../firmware/components/dc_bambu/dc_bambu.c', import.meta.url), 'utf8');
 const rgb = await readFile(new URL('../firmware/components/dv_rgb/dv_rgb.c', import.meta.url), 'utf8');
+const mapping = await readFile(new URL('../firmware/components/dv_policy/include/dv_bambu_state.h', import.meta.url), 'utf8');
 
 test('Bambu detailed phases reach the RGB status mapper', () => {
   assert.match(main, /DC_BAMBU_PRINT_PREPARING:\s+status = DV_PS_PREPARING/);
@@ -16,9 +17,9 @@ test('Bambu detailed phases reach the RGB status mapper', () => {
 });
 
 test('Bambu detailed phases remain visible in the API', () => {
-  assert.match(portal, /DC_BAMBU_PRINT_PAUSED:\s+return "paused"/);
-  assert.match(portal, /DC_BAMBU_PRINT_COMPLETE:\s+return "complete"/);
-  assert.match(portal, /printer_state = bambu_print_wire\(status\.print_state\)/);
+  assert.ok(mapping.includes('return "paused"'));
+  assert.ok(mapping.includes('return "complete"'));
+  assert.ok(portal.includes('printer_state = dv_bambu_live_state_str(&status)'));
 });
 
 test('Bambu completion is a one-shot state that expires to idle', () => {
