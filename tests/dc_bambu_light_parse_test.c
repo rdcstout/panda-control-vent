@@ -39,5 +39,39 @@ int main(void)
     assert(dc_bambu_chamber_light(
         "{\"print\":{\"lights_report\":[{\"mode\":\"on\",\"node\":\"work_light\"}]}}")
         == DC_BAMBU_LIGHT_ABSENT);
+
+    char filament[16];
+    assert(dc_bambu_active_filament(
+        "{\"print\":{\"ams\":{\"ams\":[{\"id\":\"0\",\"tray\":["
+        "{\"id\":\"0\"},{\"id\":\"1\",\"tray_type\":\"PETG\"}]}],"
+        "\"tray_now\":\"1\"}}}", filament, sizeof filament) == DC_FILA_PRESENT);
+    assert(strcmp(filament, "PETG") == 0);
+    assert(dc_bambu_active_filament(
+        "{\"print\":{\"ams\":{\"ams\":[{\"id\":\"0\",\"tray\":["
+        "{\"id\":\"0\",\"tray_type\":\"PLA\"}]},{\"id\":\"1\",\"tray\":["
+        "{\"id\":\"0\"},{\"id\":\"1\",\"tray_type\":\"PETG-CF\"}]}],"
+        "\"tray_now\":\"5\"}}}", filament, sizeof filament) == DC_FILA_PRESENT);
+    assert(strcmp(filament, "PETG-CF") == 0);
+    assert(dc_bambu_active_filament(
+        "{\"print\":{\"ams\":{\"ams\":[{\"id\":\"0\",\"tray\":[{\"id\":\"2\"}]}],"
+        "\"tray_now\":\"2\"}}}", filament, sizeof filament) == DC_FILA_EMPTY);
+    assert(dc_bambu_active_filament(
+        "{\"print\":{\"bed_temper\":70}}", filament, sizeof filament) == DC_FILA_ABSENT);
+    assert(dc_bambu_active_filament(
+        "{\"print\":{\"ams\":{\"tray_now\":\"254\"},\"vt_tray\":{"
+        "\"id\":\"254\",\"tray_type\":\"TPU\"}}}", filament, sizeof filament)
+        == DC_FILA_PRESENT);
+    assert(strcmp(filament, "TPU") == 0);
+    assert(dc_bambu_active_filament(
+        "{\"print\":{\"ams\":{\"ams\":[{\"id\":\"0\",\"tray\":["
+        "{\"id\":\"0\"},{\"id\":\"1\",\"tray_type\":\"PETG\"}]}],"
+        "\"tray_now\":\"1\"},\"bed_temper\":70,\"later_incomplete\":{",
+        filament, sizeof filament) == DC_FILA_PRESENT);
+    assert(strcmp(filament, "PETG") == 0);
+    assert(dc_bambu_active_filament(
+        "{\"print\":{\"ams\":{\"ams\":[{\"id\":\"128\",\"tray\":["
+        "{\"id\":\"0\",\"tray_type\":\"PETG\"}]}],\"tray_now\":\"128\"}}}",
+        filament, sizeof filament) == DC_FILA_PRESENT);
+    assert(strcmp(filament, "PETG") == 0);
     return 0;
 }
