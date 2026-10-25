@@ -7,6 +7,23 @@ below into the GitHub Release notes.
 
 ## [Unreleased]
 
+## [0.1.3] - 2026-10-25
+
+### Fixed
+- Detect the active material correctly when printing from a single-slot AMS HT,
+  whose Bambu hardware IDs use the 128-152 range instead of the four-slot AMS
+  unit/slot numbering scheme.
+- Resolve active trays by their reported AMS and tray IDs rather than their
+  position in the payload, while preserving ordinary multi-unit AMS and
+  external-spool behavior.
+- Continue resolving the active material when the enclosing Bambu push-status
+  message is truncated after a complete AMS object.
+
+### Validation
+- Confirmed by the contributor on real AMS HT hardware.
+- Passed the host parser/state tests, sanitizer build, settings-upgrade contract,
+  and a clean ESP-IDF 5.3.1 classic ESP32 firmware build.
+
 ## [0.1.2] - 2026-09-04
 
 ### Fixed
