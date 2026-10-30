@@ -22,6 +22,14 @@ not part of this baseline.
 - Local validation: six Node tests, the Bambu parser with ASan/UBSan, and the
   settings-upgrade contract pass. GitHub firmware build results are recorded
   against the source commit; no release or device update is part of this change.
+- Candidate 0.1.4: source `4101273e6df8d59ff2a67c63d19d1df19f762925`,
+  Firmware Build run `41003165127` passed. The ESP-IDF 5.3.1 classic ESP32
+  image reports 0.1.4, is 1,176,192 bytes, and has valid image checksum/hash.
+  Versioned and stable-name copies are byte-identical, SHA-256
+  `768baa1c48209bd10a40d3081fb049d0167086109342cce1d5ee171ae589d94e`.
+  Candidate files are in `/tmp/panda-control-vent-014.k9DhI6/`.
+  Actual OTA installation/runtime verification remains unverified; do not tag
+  or publish without that check or Roger's explicit bypass for this candidate.
 
 Release verification requires:
 
