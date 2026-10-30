@@ -12,6 +12,17 @@
 The fork begins from committed upstream source only. The temporary LED probe is
 not part of this baseline.
 
+## Pending next release
+
+- Preserve the last known Bambu material when a selected AMS or AMS HT tray
+  omits `tray_type`. Only an explicit empty type or no-spool selection clears
+  it. This addresses the review on dragon-core PR #73.
+- Regression coverage includes ordinary AMS and AMS HT missing/empty material,
+  truncated reports, external spool, and existing loaded-material detection.
+- Local validation: six Node tests, the Bambu parser with ASan/UBSan, and the
+  settings-upgrade contract pass. GitHub firmware build results are recorded
+  against the source commit; no release or device update is part of this change.
+
 Release verification requires:
 
 1. the build reports the intended Panda Control Vent release version;

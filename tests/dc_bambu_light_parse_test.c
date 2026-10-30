@@ -54,7 +54,7 @@ int main(void)
     assert(strcmp(filament, "PETG-CF") == 0);
     assert(dc_bambu_active_filament(
         "{\"print\":{\"ams\":{\"ams\":[{\"id\":\"0\",\"tray\":[{\"id\":\"2\"}]}],"
-        "\"tray_now\":\"2\"}}}", filament, sizeof filament) == DC_FILA_EMPTY);
+        "\"tray_now\":\"2\"}}}", filament, sizeof filament) == DC_FILA_ABSENT);
     assert(dc_bambu_active_filament(
         "{\"print\":{\"bed_temper\":70}}", filament, sizeof filament) == DC_FILA_ABSENT);
     assert(dc_bambu_active_filament(
@@ -73,5 +73,23 @@ int main(void)
         "{\"id\":\"0\",\"tray_type\":\"PETG\"}]}],\"tray_now\":\"128\"}}}",
         filament, sizeof filament) == DC_FILA_PRESENT);
     assert(strcmp(filament, "PETG") == 0);
+    // ams ht missing type
+    assert(dc_bambu_active_filament(
+        "{\"print\":{\"ams\":{\"ams\":[{\"id\":\"128\",\"tray\":[{\"id\":\"0\"}]}],\"tray_now\":\"128\"}}}", filament, sizeof filament) == DC_FILA_ABSENT);
+    // ams ht explicit empty
+    assert(dc_bambu_active_filament(
+        "{\"print\":{\"ams\":{\"ams\":[{\"id\":\"128\",\"tray\":[{\"id\":\"0\",\"tray_type\":\"\"}]}],\"tray_now\":\"128\"}}}", filament, sizeof filament) == DC_FILA_EMPTY);
+    // ams ht type-only delta
+    assert(dc_bambu_active_filament(
+        "{\"print\":{\"ams\":{\"ams\":[{\"id\":\"128\",\"tray\":[{\"id\":\"0\",\"tray_type\":\"PETG\"}]}]}}}", filament, sizeof filament) == DC_FILA_ABSENT);
+    // ams ht truncated tray
+    assert(dc_bambu_active_filament(
+        "{\"print\":{\"ams\":{\"ams\":[{\"id\":\"128\",\"tray\":[{\"id\":\"0\",\"tray_type\":\"PE", filament, sizeof filament) == DC_FILA_ABSENT);
+    // ams explicit empty
+    assert(dc_bambu_active_filament(
+        "{\"print\":{\"ams\":{\"ams\":[{\"id\":\"0\",\"tray\":[{\"id\":\"2\",\"tray_type\":\"\"}]}],\"tray_now\":\"2\"}}}", filament, sizeof filament) == DC_FILA_EMPTY);
+    // explicit no spool
+    assert(dc_bambu_active_filament(
+        "{\"print\":{\"ams\":{\"tray_now\":\"255\"}}}", filament, sizeof filament) == DC_FILA_EMPTY);
     return 0;
 }
