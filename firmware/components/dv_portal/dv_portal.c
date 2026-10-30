@@ -928,14 +928,42 @@ static esp_err_t apply_product(const cJSON *values, void *ctx, char *message, si
     return ESP_OK;
 }
 
-static esp_err_t factory_reset(void *ctx)
+static esp_err_t clear_retained_setup(void)
 {
-    (void)ctx;
-    esp_err_t first = dc_moonraker_clear_config();
+    // Stock blobs would otherwise be re-imported when our current keys are
+    // removed. Clear setup identity/security too; retain lighting and calibration.
+    static const char *const keys[] = {
+        "wifi_info", "bambu_mqtt_info", "moonraker_info", "ha_mqtt_info",
+        "ha_host", "ha_user", "ha_pass", "ha_port",
+        "ap_ssid", "ap_pass", "ap_ip", "ap_enabled", "ap_mode", "ctl_token",
+    };
+    nvs_handle_t h;
+    esp_err_t err = nvs_open(DV_NVS_NS, NVS_READWRITE, &h);
+    if (err != ESP_OK) return err;
+    for (size_t i = 0; i < sizeof(keys) / sizeof(keys[0]); i++) {
+        err = nvs_erase_key(h, keys[i]);
+        if (err == ESP_ERR_NVS_NOT_FOUND) err = ESP_OK;
+        if (err != ESP_OK) break;
+    }
+    if (err == ESP_OK) err = nvs_commit(h);
+    nvs_close(h);
+    return err;
+}
+
+esp_err_t dv_portal_reset_settings(void)
+{
+    esp_err_t first = clear_retained_setup();
+    if (first == ESP_OK) first = dc_moonraker_clear_config();
     if (first == ESP_OK) first = dc_bambu_clear_config();
     if (first == ESP_OK) first = dc_source_set(DC_SRC_KLIPPER);
     if (first == ESP_OK) first = dv_policy_clear();
     return first;
+}
+
+static esp_err_t factory_reset(void *ctx)
+{
+    (void)ctx;
+    return dv_portal_reset_settings();
 }
 
 esp_err_t dv_portal_start(void)

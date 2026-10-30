@@ -667,11 +667,13 @@ esp_err_t dc_wifi_clear_creds(void)
     nvs_handle_t h;
     esp_err_t err = nvs_open(NVS_NS, NVS_READWRITE, &h);
     if (err != ESP_OK) return err;
-    nvs_erase_key(h, KEY_SSID);
-    nvs_erase_key(h, KEY_PASS);
-    nvs_commit(h);
+    err = nvs_erase_key(h, KEY_SSID);
+    if (err == ESP_ERR_NVS_NOT_FOUND) err = ESP_OK;
+    if (err == ESP_OK) err = nvs_erase_key(h, KEY_PASS);
+    if (err == ESP_ERR_NVS_NOT_FOUND) err = ESP_OK;
+    if (err == ESP_OK) err = nvs_commit(h);
     nvs_close(h);
-    return ESP_OK;
+    return err;
 }
 
 dc_wifi_state_t dc_wifi_state(void) { return s_state; }

@@ -149,11 +149,12 @@ static void on_button(dv_button_id_t id, dv_button_event_t ev)
     }
     if (id == DV_BUTTON_BOOT && ev == DV_BUTTON_LONG) {
         ESP_LOGW(TAG, "BOOT long: factory reset");
-        dc_wifi_clear_creds();
-        dc_moonraker_clear_config();
-        dc_bambu_clear_config();
-        dc_source_set(DC_SRC_KLIPPER);
-        dv_policy_clear();
+        esp_err_t err = dv_portal_reset_settings();
+        if (err == ESP_OK) err = dc_wifi_clear_creds();
+        if (err != ESP_OK) {
+            ESP_LOGE(TAG, "factory reset failed: %s", esp_err_to_name(err));
+            return;
+        }
         vTaskDelay(pdMS_TO_TICKS(200));
         esp_restart();
     }

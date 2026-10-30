@@ -7,6 +7,12 @@ below into the GitHub Release notes.
 
 ## [Unreleased]
 
+### Fixed
+- Factory reset clears retained stock network and printer configuration so the
+  controller stays in setup mode instead of restoring its previous connection.
+- Web and BOOT-button resets share the same settings cleanup, preserve lighting
+  and calibration, and restore the default setup hotspot identity and access.
+
 ## [0.1.4] - 2026-10-30
 
 ### Fixed

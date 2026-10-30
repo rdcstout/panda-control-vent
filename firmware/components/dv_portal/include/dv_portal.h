@@ -7,3 +7,7 @@
 
 esp_err_t dv_portal_start(void);
 esp_err_t dv_portal_stop(void);
+
+// Clear printer/policy setup and retained stock provisioning data. Wi-Fi
+// credentials are cleared by the reset caller after this succeeds.
+esp_err_t dv_portal_reset_settings(void);
