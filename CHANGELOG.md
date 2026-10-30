@@ -7,6 +7,14 @@ below into the GitHub Release notes.
 
 ## [Unreleased]
 
+## [0.1.4] - 2026-10-30
+
+### Fixed
+- Preserve the last known Bambu material when an ordinary AMS or AMS HT tray
+  update omits its material type. Explicit empty material and no-spool reports
+  still clear it, so incomplete updates cannot accidentally disable material
+  automation rules.
+
 ## [0.1.3] - 2026-10-25
 
 ### Fixed
