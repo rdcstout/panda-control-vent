@@ -1,6 +1,6 @@
 # Factory reset credential migration regression
 
-Scope: local Panda Control Vent 0.1.5 candidate. Public release remains 0.1.4.
+Scope: Panda Control Vent 0.1.5.
 
 ## Reproduction
 
@@ -37,3 +37,13 @@ The Vent is intentionally left unconfigured for transfer to its buyer. The
 BOOT-button path shares the verified cleanup but was not physically pressed.
 No source push, release, or reconfiguration of the buyer-ready unit was performed
 in this local validation step.
+
+## Publication
+
+Roger subsequently authorized public release. Tag v0.1.5 points to
+`63e1744aa15b4a46fbafa6550ac19de3c3766dfe`; its firmware/test source matches
+the locally tested candidate. Firmware Build `41131988372` and Firmware Release
+`41132259950` passed. The exact hardware-tested BIN was published under both
+the versioned and stable filenames. Both release assets and the permanent
+latest-release download were retrieved and compared byte-for-byte with the
+tested candidate; SHA256SUMS passed with the hash above.
