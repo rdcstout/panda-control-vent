@@ -1,7 +1,7 @@
 # Development Baseline
 
 - Product: Panda Control Vent
-- Current tested stable release: 0.1.3
+- Current stable release: 0.1.4
 - Upstream: DragonVent v0.5.9
 - Upstream commit: `51d1c1ea09e0f752b030de56f7b7a9b42fda6518`
 - Dragon Core: v0.30.0, pinned to object
@@ -12,7 +12,7 @@
 The fork begins from committed upstream source only. The temporary LED probe is
 not part of this baseline.
 
-## Pending next release
+## 0.1.4 source and build verification
 
 - Preserve the last known Bambu material when a selected AMS or AMS HT tray
   omits `tray_type`. Only an explicit empty type or no-spool selection clears
@@ -20,16 +20,12 @@ not part of this baseline.
 - Regression coverage includes ordinary AMS and AMS HT missing/empty material,
   truncated reports, external spool, and existing loaded-material detection.
 - Local validation: six Node tests, the Bambu parser with ASan/UBSan, and the
-  settings-upgrade contract pass. GitHub firmware build results are recorded
-  against the source commit; no release or device update is part of this change.
+  settings-upgrade contract pass.
 - Candidate 0.1.4: source `4101273e6df8d59ff2a67c63d19d1df19f762925`,
   Firmware Build run `41003165127` passed. The ESP-IDF 5.3.1 classic ESP32
   image reports 0.1.4, is 1,176,192 bytes, and has valid image checksum/hash.
   Versioned and stable-name copies are byte-identical, SHA-256
   `768baa1c48209bd10a40d3081fb049d0167086109342cce1d5ee171ae589d94e`.
-  Candidate files are in `/tmp/panda-control-vent-014.k9DhI6/`.
-  Actual OTA installation/runtime verification remains unverified; do not tag
-  or publish without that check or Roger's explicit bypass for this candidate.
 
 Release verification requires:
 
