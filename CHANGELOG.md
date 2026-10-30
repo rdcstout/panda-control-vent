@@ -7,6 +7,8 @@ below into the GitHub Release notes.
 
 ## [Unreleased]
 
+## [0.1.5] - 2026-10-30
+
 ### Fixed
 - Factory reset clears retained stock network and printer configuration so the
   controller stays in setup mode instead of restoring its previous connection.

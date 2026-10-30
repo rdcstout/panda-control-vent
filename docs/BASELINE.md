@@ -1,7 +1,7 @@
 # Development Baseline
 
 - Product: Panda Control Vent
-- Current stable release: 0.1.4
+- Current stable release: 0.1.5
 - Upstream: DragonVent v0.5.9
 - Upstream commit: `51d1c1ea09e0f752b030de56f7b7a9b42fda6518`
 - Dragon Core: v0.30.0, pinned to object
@@ -11,6 +11,16 @@
 
 The fork begins from committed upstream source only. The temporary LED probe is
 not part of this baseline.
+
+## 0.1.5 reset verification
+
+- Web reset was exercised on retail hardware: the installed 0.1.5 image returned
+  to its Panda Control Vent setup hotspot instead of restoring the prior network.
+- Seven Node tests, ASan/UBSan reset helpers, settings-upgrade contract, and the
+  ESP-IDF 5.3.1 ESP32 build pass. Lighting and calibration storage are preserved.
+- The 1,176,688-byte tested image is shipped without rebuilding its bytes.
+  SHA-256: `b0ca6ba39ae3a0b7832cc7eb88d74ed35e7834f13118e383d97baa23ea2b5705`.
+- See [reset verification](testing/2026-10-30-factory-reset.md).
 
 ## 0.1.4 source and build verification
 
