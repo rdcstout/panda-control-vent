@@ -78,9 +78,8 @@ is verified by host regression, not new physical printer/heater testing.
 
 ## Delivery checkpoint
 
-Implementation, automated tests, independent review, clean build and exact-byte
-hardware acceptance are complete. Own-repository source/release delivery and
-post-publication download verification are next. No upstream PR or website change
+Implementation, automated tests, independent review, clean build, exact-byte
+hardware acceptance and own-repository release delivery are complete. No upstream PR or website change
 is included. Preserve the existing 0.1.5 versioned image for recovery.
 
 Build/evidence: `/tmp/panda-control-vent-016-final-build` and matching `.log`;
@@ -88,3 +87,30 @@ private validation snapshots: `/tmp/pcv-016-private-validation` (not for upload)
 Durable candidate: sibling `panda-control-vent-0.1.6-candidate` directory.
 Temporary build cleanup will be proposed only after delivery; source, release
 artifacts and verification evidence remain retained.
+
+## Publication receipt
+
+Tag v0.1.6 identifies `819c5f83356475f92dafbac1baa156a1508b7d0f`. Its firmware,
+test and release trees match the hardware-verified commit `5868e96`; the final
+companion commit corrects the upgrade-contract checker for the local override.
+The obsolete four-managed-dependency check initially failed CI; it was corrected
+to require three managed pins, exact local provenance and unchanged Moonraker
+persistence keys. This was independently reviewed and all checks then passed.
+
+- [Firmware Build 41168208156](https://github.com/rdcstout/panda-control-vent/actions/runs/41168208156): passed.
+- [Firmware Release 41168387775](https://github.com/rdcstout/panda-control-vent/actions/runs/41168387775): passed.
+- [Public release v0.1.6](https://github.com/rdcstout/panda-control-vent/releases/tag/v0.1.6): stable/latest, with both exact tested OTA assets and SHA256SUMS.
+- Both distributed BINs were downloaded and checked byte-for-byte; SHA256SUMS
+  passed. The permanent latest-release download also matched the tested hash
+  `f591c86cd9bd2a93b25997e1a21cb431b3526b01fd8f3dadb0b6eb3cccc9b671`.
+- Post-publication device check confirmed firmware 0.1.6, Bambu subscribed and still
+  printing PETG with bed/target 70 C, Auto OPEN, both motors stopped, unchanged
+  settings/calibration and no new reboot since the final OTA.
+- The exact local ELF, map and build log are retained with the durable candidate
+  for decoding a future firmware fault. Firmware 0.1.5 remains available for recovery.
+
+Website and desktop application were left unchanged as directed. No upstream PR
+was submitted. Cleanup remains awaiting approval: the two reproducible temporary
+build directories total about 294 MB; temporary test/download copies add about 4 MB.
+The durable candidate, local symbols, source/history and release artifacts will
+remain retained. Task-owned sleep protection is released at closeout.
