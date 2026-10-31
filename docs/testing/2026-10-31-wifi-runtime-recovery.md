@@ -17,4 +17,9 @@ Source inspection and a compiled actual-function regression confirm two recovery
 
 ## Delivery state
 
-Installed locally only. No public release/tag, remote push, upstream PR or website edit is included. Public firmware remains 0.1.6. Desktop companion local repair is 0.1.6, public desktop remains 0.1.5. Keep the known-good public 0.1.6 image for recovery. Current build/evidence retained for follow-up; task-owned sleep assertion is released at closeout.
+Owner authorized completing public delivery after the local repair. The tested
+0.1.7 BIN is staged for the public release, with a byte-identical permanent-name
+copy and checksums. Publish after source CI succeeds, then verify the actual public
+downloads and record the release receipt here. No upstream PR or website edit is
+included. Keep the known-good public 0.1.6 image for recovery. Current build and
+evidence are retained through release verification.

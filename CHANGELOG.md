@@ -7,6 +7,12 @@ below into the GitHub Release notes.
 
 ## [Unreleased]
 
+## [0.1.7] - 2026-10-31
+
+- Keeps reconnecting after runtime Wi-Fi outages instead of stopping at the initial setup retry limit.
+- Restores the connecting state after a disconnect so the existing DHCP watchdog can recover an association that receives no address.
+- Preserves Wi-Fi credentials, printer binding, lighting, automation settings, and motor calibration.
+
 ## [0.1.6] - 2026-10-31
 
 ### Fixed
