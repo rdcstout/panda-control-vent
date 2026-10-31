@@ -7,6 +7,17 @@ below into the GitHub Release notes.
 
 ## [Unreleased]
 
+## [0.1.6] - 2026-10-31
+
+### Fixed
+- Automatic vent control follows the selected printer immediately after setup
+  or rebinding, without requiring a reboot. This fixes vents remaining closed
+  after switching from an unconfigured Klipper source to a Bambu printer.
+- Avoid a Vent restart when selecting Klipper after starting on another source.
+- Load saved motor calibration before initializing the motors at startup.
+- Preserve existing manual controls, temperature thresholds, material rules,
+  cooldown hysteresis, and the paired chamber-heater interlock.
+
 ## [0.1.5] - 2026-10-30
 
 ### Fixed

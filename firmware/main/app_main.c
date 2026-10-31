@@ -190,8 +190,10 @@ void app_main(void)
 
     dc_evlog_console_init();
     dc_evlog_init();
-    dc_evlog_add("DragonVent boot");
+    dc_evlog_add("DragonVent boot (reset_reason=%d)", (int)esp_reset_reason());
 
+    // Load saved motor calibration before network workers start.
+    ESP_ERROR_CHECK(dc_wifi_init_storage());
     ESP_ERROR_CHECK(dv_motor_init());
     ESP_ERROR_CHECK(configure_network_identity());
     ESP_ERROR_CHECK(dc_wifi_start());

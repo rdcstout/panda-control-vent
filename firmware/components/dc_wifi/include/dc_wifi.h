@@ -27,6 +27,10 @@ typedef struct {
     const char *ap_password;    // empty for open; 8-63 chars or a 64-digit hex key
 } dc_wifi_identity_t;
 
+// Initialize shared NVS before any product settings are loaded. Idempotent;
+// also called by dc_wifi_start(). Does not start network tasks.
+esp_err_t dc_wifi_init_storage(void);
+
 // Configure product-specific network identity. Must be called before dc_wifi_start().
 // If omitted, family-neutral Dragon defaults are used.
 esp_err_t dc_wifi_set_identity(const dc_wifi_identity_t *identity);

@@ -86,7 +86,6 @@ static dv_automation_mode_t s_automation_mode = DV_AUTOMATION_SIMPLE;
 static float             s_bed_seal_c = BED_SEAL_C_DEFAULT;
 static float             s_bed_open_c  = BED_OPEN_C_DEFAULT;
 static float             s_bed_close_c = BED_CLOSE_C_DEFAULT;
-static dc_ctl_source_t   s_source = DC_SRC_KLIPPER;
 
 typedef struct {
     bool reliable;
@@ -104,7 +103,11 @@ static void read_auto_input(auto_input_t *out)
     memset(out, 0, sizeof(*out));
     out->state = "unknown";
 
-    if (s_source == DC_SRC_KLIPPER) {
+    // Setup can rebind the printer without rebooting. Use one current source
+    // snapshot per tick, shared with the API and live client selection.
+    const dc_ctl_source_t source = dc_source_get();
+
+    if (source == DC_SRC_KLIPPER) {
         dc_moonraker_status_t st = {0};
         if (dc_moonraker_get_status(&st) != ESP_OK) return;
         out->reliable = st.state == DC_MK_SUBSCRIBED &&
@@ -128,7 +131,7 @@ static void read_auto_input(auto_input_t *out)
         return;
     }
 
-    if (s_source == DC_SRC_BAMBU) {
+    if (source == DC_SRC_BAMBU) {
         dc_bambu_status_t st = {0};
         if (dc_bambu_get_status(&st) != ESP_OK) return;
         out->reliable = st.state == DC_BAMBU_SUBSCRIBED;
@@ -140,7 +143,7 @@ static void read_auto_input(auto_input_t *out)
         return;
     }
 
-    out->state = dc_source_str(s_source);
+    out->state = dc_source_str(source);
 }
 
 static void apply_target(dv_motor_target_t t)
@@ -366,7 +369,6 @@ esp_err_t dv_policy_start(void)
     s_lock = xSemaphoreCreateMutex();
     if (s_lock == NULL) return ESP_ERR_NO_MEM;
     load_persisted();
-    s_source = dc_source_get();
     if (xTaskCreate(policy_task, "dv_policy", 4096, NULL, 4, &s_task) != pdPASS) {
         return ESP_ERR_NO_MEM;
     }

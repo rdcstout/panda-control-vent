@@ -571,9 +571,11 @@ esp_err_t dc_wifi_set_identity(const dc_wifi_identity_t *identity)
     return ESP_OK;
 }
 
-esp_err_t dc_wifi_start(void)
+static bool s_storage_ready = false;
+
+esp_err_t dc_wifi_init_storage(void)
 {
-    // NVS
+    if (s_storage_ready) return ESP_OK;
     esp_err_t err = nvs_flash_init();
     if (err == ESP_ERR_NVS_NO_FREE_PAGES || err == ESP_ERR_NVS_NEW_VERSION_FOUND) {
         ESP_ERROR_CHECK(nvs_flash_erase());
@@ -581,6 +583,14 @@ esp_err_t dc_wifi_start(void)
     } else if (err != ESP_OK) {
         return err;
     }
+    s_storage_ready = true;
+    return ESP_OK;
+}
+
+esp_err_t dc_wifi_start(void)
+{
+    esp_err_t err = dc_wifi_init_storage();
+    if (err != ESP_OK) return err;
 
     // First boot after an OTA-over-stock: carry WiFi + Moonraker across from stock's
     // app_nvs blobs so the device rejoins without re-provisioning.

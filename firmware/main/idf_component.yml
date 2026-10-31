@@ -7,10 +7,6 @@ dependencies:
     git: https://github.com/justinh-rahb/dragon-core.git
     path: components/dc_source
     version: 8d5a61de8544a5b82cc3c6d9c7dc593ce06bb8bd
-  dc_moonraker:
-    git: https://github.com/justinh-rahb/dragon-core.git
-    path: components/dc_moonraker
-    version: 8d5a61de8544a5b82cc3c6d9c7dc593ce06bb8bd
   dc_portal:
     git: https://github.com/justinh-rahb/dragon-core.git
     path: components/dc_portal
