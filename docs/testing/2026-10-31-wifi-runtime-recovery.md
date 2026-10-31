@@ -17,9 +17,15 @@ Source inspection and a compiled actual-function regression confirm two recovery
 
 ## Delivery state
 
-Owner authorized completing public delivery after the local repair. The tested
-0.1.7 BIN is staged for the public release, with a byte-identical permanent-name
-copy and checksums. Publish after source CI succeeds, then verify the actual public
-downloads and record the release receipt here. No upstream PR or website edit is
-included. Keep the known-good public 0.1.6 image for recovery. Current build and
-evidence are retained through release verification.
+Published [0.1.7](https://github.com/rdcstout/panda-control-vent/releases/tag/v0.1.7),
+latest stable, tag/source `f3c188dcabfb422ba4bfc5028a02060755755d55`. Runtime fix
+commit is `74fabda3f17fe4619bcf9d031533135e4ce17df8`; the release commit adds only
+notes and the exact hardware-tested artifacts.
+
+- Independent firmware build/upgrade check: Actions run `41201629765`, passed.
+- CodeQL: run `41201629679`, passed.
+- Release verification/publishing: run `41201859217`, passed.
+- Downloaded both public BINs and checksums; both match the hardware-tested SHA-256
+  above. The permanent latest-download URL resolves to the same exact image.
+- No upstream PR or website edit is included. The 0.1.6 versioned image is retained
+  for recovery. Current ELF/map, candidate and private diagnostics remain local.
