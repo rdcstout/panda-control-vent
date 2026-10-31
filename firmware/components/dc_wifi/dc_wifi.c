@@ -48,6 +48,7 @@ static esp_netif_t *s_ap_netif = NULL;
 static esp_timer_handle_t s_no_ip_timer   = NULL;   // "associated but no DHCP IP" watchdog
 #define NO_IP_TIMEOUT_US  (5ULL * 1000000ULL)       // 5s to get a DHCP lease, else drop & re-scan
 static int s_retry = 0;
+static bool s_sta_ever_connected = false;
 static bool s_mdns_started = false;
 static char s_hostname[33] = DC_WIFI_DEFAULT_HOSTNAME;
 static char s_instance_name[64] = DC_WIFI_DEFAULT_INSTANCE_NAME;
@@ -480,7 +481,14 @@ static void on_wifi_event(void *arg, esp_event_base_t base, int32_t id, void *da
         const wifi_event_sta_disconnected_t *d = (const wifi_event_sta_disconnected_t *)data;
         if (d) s_last_disc_reason = d->reason;   // keep the latest reason for the setup page
         if (s_state == DC_WIFI_STATE_STA_CONNECTING || s_state == DC_WIFI_STATE_STA_CONNECTED) {
-            if (s_retry < STA_MAX_RETRIES) {
+            s_state = DC_WIFI_STATE_STA_CONNECTING;
+            xEventGroupClearBits(s_events, BIT_CONNECTED);
+            // The retry limit belongs to initial provisioning. After a working
+            // connection, keep recovering from outages without requiring reboot.
+            if (s_sta_ever_connected) {
+                ESP_LOGW(TAG, "STA disconnect (reason %u); reconnecting", (unsigned)s_last_disc_reason);
+                esp_wifi_connect();
+            } else if (s_retry < STA_MAX_RETRIES) {
                 s_retry++;
                 ESP_LOGW(TAG, "STA disconnect; retry %d/%d", s_retry, STA_MAX_RETRIES);
                 esp_wifi_connect();
@@ -501,8 +509,10 @@ static void on_ip_event(void *arg, esp_event_base_t base, int32_t id, void *data
         ip_event_got_ip_t *evt = (ip_event_got_ip_t *)data;
         ESP_LOGI(TAG, "got IP " IPSTR, IP2STR(&evt->ip_info.ip));
         s_retry = 0;
+        s_sta_ever_connected = true;
         s_state = DC_WIFI_STATE_STA_CONNECTED;
         s_sta_failed = false;
+        xEventGroupClearBits(s_events, BIT_FAILED);
         xEventGroupSetBits(s_events, BIT_CONNECTED);
     }
 }
