@@ -29,17 +29,27 @@ require(
 
 component_manifest = read("firmware/main/idf_component.yml")
 dragon_core_pin = "8d5a61de8544a5b82cc3c6d9c7dc593ce06bb8bd"
-for component in ("dc_evlog", "dc_source", "dc_moonraker", "dc_portal"):
+for component in ("dc_evlog", "dc_source", "dc_portal"):
     require(f"  {component}:" in component_manifest, f"missing {component} dependency")
 require(
-    component_manifest.count(f"version: {dragon_core_pin}") == 4,
+    component_manifest.count(f"version: {dragon_core_pin}") == 3,
     "shared dependencies are not pinned to the reviewed dragon-core v0.30.0 object",
 )
 
 lock = read("firmware/dependencies.lock")
 require(
-    lock.count(f"version: {dragon_core_pin}") == 4,
+    lock.count(f"version: {dragon_core_pin}") == 3,
     "dependency lock does not contain the reviewed dragon-core object",
+)
+
+# Moonraker is a reviewed local override: preserve its pinned origin and NVS keys.
+require(
+    dragon_core_pin in read("firmware/components/dc_moonraker/VENDORING.md"),
+    "local Moonraker provenance no longer identifies the reviewed dragon-core object",
+)
+require(
+    "  dc_moonraker:" not in component_manifest,
+    "local Moonraker override still has a redundant managed dependency",
 )
 
 expected_keys = {
@@ -48,6 +58,9 @@ expected_keys = {
     ),
     "firmware/components/dc_bambu/dc_bambu.c": (
         'KEY_HOST "bb_host"', 'KEY_SER  "bb_serial"', 'KEY_CODE "bb_code"',
+    ),
+    "firmware/components/dc_moonraker/dc_moonraker.c": (
+        'KEY_HOST     "mk_host"', 'KEY_PORT     "mk_port"', 'KEY_APIKEY   "mk_apikey"',
     ),
     "firmware/managed_components/dc_source/dc_source.c": ('KEY_SRC "ctl_src"',),
     "firmware/components/dv_policy/dv_policy.c": (
